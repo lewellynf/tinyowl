@@ -100,12 +100,14 @@ pnpm dev
 
 引擎遵循「采样（I/O）→ 判定（纯函数）→ 聚合（纯函数）」三段式：
 
-- `src/engine/sampler.ts`：undici 调用中转站，单轮 60s 超时仅标记不中断；401/403 立即中止任务。
-- `src/engine/probes.ts`：六个维度判定均为纯函数，便于属性测试。
-- `src/engine/score.ts`：加权聚合评分（inconclusive 维度剔除），派生身份替换/降智警示。
+- `src/engine/sampler.ts`：undici 调用中转站，单轮 60s 超时仅标记不中断；401/403 立即中止任务；并提取响应协议元数据（id 前缀、usage 字段、结束原因等）。
+- `src/engine/probes.ts`：七个维度判定均为纯函数，便于属性测试。
+- `src/engine/score.ts`：加权聚合评分（inconclusive 维度剔除），来源冲突时硬封顶总分并派生身份替换/降智警示。
 - `src/engine/keyHolder.ts`：进程内密钥持有，任务结束 `finally` 中销毁。
 
-签名指纹维度参考论文《Auditing Black-Box LLM APIs with a Rank-Based Uniformity Test》的「基于秩的均匀性检验」思路，方法学亦参考开源项目 add-matong/llm-api-model-verifier。
+七维体系中，**协议来源指纹**（响应元数据厂商一致性）是最难伪造、权重最高的维度，可识破「行为层伪装到位但底层来源不符」的高仿替换。完整原理见 **[检测原理白皮书](docs/检测原理.md)**。
+
+方法学参考论文《Auditing Black-Box LLM APIs with a Rank-Based Uniformity Test》《Are You Getting What You Pay For? Auditing Model Substitution in LLM APIs》等（详见白皮书引用文献）。
 
 ## 目录结构
 
