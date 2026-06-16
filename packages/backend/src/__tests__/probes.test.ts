@@ -1,9 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { identityProbe, knowledgeProbe, protocolProbe, structureProbe } from '../engine/probes.js';
+import {
+  fingerprintProbe,
+  identityProbe,
+  knowledgeProbe,
+  protocolProbe,
+  structureProbe,
+} from '../engine/probes.js';
 import { getModelProfile } from '../engine/profiles.js';
 import type { RelaySample } from '../engine/types.js';
 
-const opus = getModelProfile('claude-opus-4-8');
+const opus = getModelProfile('claude-opus-4-6');
 
 describe('protocolProbe', () => {
   it('完整 OpenAI 协议字段 → pass', () => {
@@ -93,5 +99,64 @@ describe('identityProbe', () => {
       { purpose: 'identity', ok: true, timedOut: false, content: '我是 GPT，由 OpenAI 开发。' },
     ];
     expect(identityProbe.evaluate(samples, opus).verdict).toBe('fail');
+  });
+
+  // 回归用例：正品 Claude 因安全策略拒答身份问题，不应判失败（对齐真品 xiaomuai.cn）
+  it('正品拒答身份问题（如 "I can\'t discuss that."）→ pass，不误判替换', () => {
+    const samples: RelaySample[] = [
+      { purpose: 'identity', ok: true, timedOut: false, content: "I can't discuss that." },
+      { purpose: 'identity', ok: true, timedOut: false, content: '抱歉，我无法讨论这个问题。' },
+    ];
+    const r = identityProbe.evaluate(samples, opus);
+    expect(r.verdict).toBe('pass');
+    expect(r.score).toBeGreaterThanOrEqual(80);
+  });
+
+  it('部分拒答 + 部分自称本厂商 → pass', () => {
+    const samples: RelaySample[] = [
+      { purpose: 'identity', ok: true, timedOut: false, content: "I can't discuss that." },
+      { purpose: 'identity', ok: true, timedOut: false, content: '我是 Claude。' },
+    ];
+    expect(identityProbe.evaluate(samples, opus).verdict).toBe('pass');
+  });
+});
+
+describe('fingerprintProbe（校准回归）', () => {
+  // 回归用例：正品中文四行诗，长度恒为 35 但内容各异，应 pass（对齐真品 xiaomuai.cn）
+  it('固定格式输出长度相同但内容互异 → pass（不误判缓存）', () => {
+    const poems = [
+      '落叶随风舞翩翩，霜染枫林色斑斓。雁阵南飞天际远，一抹斜阳挂冷山。',
+      '枫叶染红山间路，寒露凝霜草木疏。雁阵南归天际远，一壶新茶对黄昏。',
+      '落叶随风舞翩翩，寒霜初染柿枝间。雁阵南归天际远，一缕秋光映冷山。',
+      '落叶随风舞翩跹，霜染枫林红似焰。雁阵南归天际远，一抹斜阳照秋山。',
+      '落叶随风舞翩翩，霜染枫林色斑斓。雁阵南飞天际远，一湖秋水映寒山。',
+    ];
+    const samples: RelaySample[] = poems.map((c) => ({ purpose: 'fingerprint', ok: true, timedOut: false, content: c }));
+    const r = fingerprintProbe.evaluate(samples, opus);
+    expect(r.verdict).toBe('pass');
+    expect(r.score).toBe(100);
+  });
+
+  // 对抗用例：多次返回完全相同内容 → 疑似缓存/模板，应扣分
+  it('多次返回完全相同内容 → suspect/fail（识别缓存模板）', () => {
+    const same = '这是一句固定的模板回答。';
+    const samples: RelaySample[] = Array.from({ length: 5 }, () => ({
+      purpose: 'fingerprint' as const,
+      ok: true,
+      timedOut: false,
+      content: same,
+    }));
+    const r = fingerprintProbe.evaluate(samples, opus);
+    expect(r.score).toBeLessThan(80);
+  });
+
+  it('多次空响应 → 低分', () => {
+    const samples: RelaySample[] = Array.from({ length: 3 }, () => ({
+      purpose: 'fingerprint' as const,
+      ok: true,
+      timedOut: false,
+      content: '',
+    }));
+    expect(fingerprintProbe.evaluate(samples, opus).score).toBeLessThan(60);
   });
 });

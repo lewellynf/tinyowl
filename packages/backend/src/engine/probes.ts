@@ -126,7 +126,9 @@ export const knowledgeProbe: DimensionProbe = {
   },
 };
 
-/** 4. 身份一致性：自述身份与目标模型比对（REQ-3.6） */
+/** 4. 身份一致性：自述身份与目标模型比对（REQ-3.6）
+ *  关键原则：只有「自称竞品厂商」才判身份替换；正品模型常因安全策略拒答或不明示自身身份，
+ *  这种情况不应判失败（否则正品反而测不过）。 */
 export const identityProbe: DimensionProbe = {
   dimension: 'identity_consistency',
   evaluate(samples, target) {
@@ -137,24 +139,42 @@ export const identityProbe: DimensionProbe = {
     if (target.identityKeywords.length === 0) {
       return { dimension: 'identity_consistency', verdict: 'inconclusive', score: 0, explanation: '未知目标模型，缺少身份基线，无法判定。' };
     }
-    let match = 0;
-    const seen: string[] = [];
+    let selfMatch = 0; // 自称本厂商
+    let competitor = 0; // 自称竞品（强替换信号）
+    let neutral = 0; // 拒答 / 未明示
     for (const s of relevant) {
       const content = (s.content ?? '').toLowerCase();
-      seen.push(s.content?.slice(0, 40) ?? '');
-      if (target.identityKeywords.some((k) => content.includes(k.toLowerCase()))) match++;
+      const hitSelf = target.identityKeywords.some((k) => content.includes(k.toLowerCase()));
+      const hitComp = target.competitorKeywords.some((k) => content.includes(k.toLowerCase()));
+      if (hitComp && !hitSelf) competitor++;
+      else if (hitSelf) selfMatch++;
+      else neutral++;
     }
-    const score = Math.round((match / relevant.length) * 100);
-    // 身份维度更严格：低于半数命中即判 fail（触发身份替换警示）
-    const verdict: Verdict = score >= 80 ? 'pass' : score >= 50 ? 'suspect' : 'fail';
+    // 任意一次自称竞品 → 判失败（身份替换）
+    if (competitor > 0) {
+      const score = Math.max(0, Math.round((selfMatch / relevant.length) * 40));
+      return {
+        dimension: 'identity_consistency',
+        verdict: 'fail',
+        score,
+        explanation: `${relevant.length} 次身份探测中有 ${competitor} 次自称其它厂商模型，疑似模型身份替换。`,
+      };
+    }
+    // 无竞品信号：自称本厂商或合规拒答/不明示，均视为通过
+    if (selfMatch > 0) {
+      return {
+        dimension: 'identity_consistency',
+        verdict: 'pass',
+        score: 100,
+        explanation: `模型自述身份与目标「${target.model}」一致。`,
+      };
+    }
     return {
       dimension: 'identity_consistency',
-      verdict,
-      score,
+      verdict: 'pass',
+      score: 85,
       explanation:
-        score >= 80
-          ? `模型自述身份与目标「${target.model}」一致。`
-          : `${relevant.length} 次身份探测中仅 ${match} 次与目标模型特征匹配，疑似模型身份替换。`,
+        '模型未明确自述身份（正品模型常因安全策略拒答此类问题），但未发现自称其它厂商，未见身份替换迹象。',
     };
   },
 };
@@ -192,31 +212,55 @@ export const reasoningProbe: DimensionProbe = {
   },
 };
 
-/** 6. 签名指纹：基于秩的均匀性检验思路，比对长度分布与基线（REQ-3.8） */
+/** 6. 签名指纹：基于多次采样的统计指纹（REQ-3.8）
+ *  关键原则：判缓存/模板要看「内容是否重复」，而非「长度是否相同」——
+ *  正品模型在固定格式下（如中文四行诗）长度天然一致，但内容各不相同。
+ *  方法学参考「基于秩的均匀性检验」：用响应内容的分布形态与基线比对。 */
 export const fingerprintProbe: DimensionProbe = {
   dimension: 'signature_fingerprint',
-  evaluate(samples, target) {
+  evaluate(samples) {
     const relevant = samples.filter((s) => s.purpose === 'fingerprint' && !s.timedOut && s.ok);
     if (relevant.length < 2) {
       return { dimension: 'signature_fingerprint', verdict: 'inconclusive', score: 0, explanation: '指纹采样不足（需至少 2 次有效采样）。' };
     }
-    const lens = relevant.map((s) => (s.content ?? '').length);
-    const [lo, hi] = target.typicalLenRange;
-    const inRange = lens.filter((l) => l >= lo && l <= hi).length;
-    // 长度分布离散度：完全相同的输出长度提示缓存/固定模板，过度集中也异常
-    const uniqueLens = new Set(lens).size;
-    const diversity = uniqueLens / lens.length; // 1 表示完全多样
-    const rangeScore = (inRange / lens.length) * 70;
-    const diversityScore = diversity * 30;
-    const score = Math.round(Math.min(100, rangeScore + diversityScore));
+    const contents = relevant.map((s) => (s.content ?? '').trim());
+    const nonEmpty = contents.filter((c) => c.length > 0).length;
+    const validity = nonEmpty / contents.length; // 有效响应占比
+
+    // 内容去重率：同一 prompt 多次返回，正品应高度多样
+    const uniqueContents = new Set(contents.filter((c) => c.length > 0)).size;
+    const diversity = nonEmpty > 0 ? uniqueContents / nonEmpty : 0;
+
+    // 有效性占 55 分；内容多样性占 45 分
+    const validityScore = validity * 55;
+    let diversityScore: number;
+    let diversityNote: string;
+    if (diversity >= 0.8) {
+      diversityScore = 45;
+      diversityNote = '内容多样性高，符合真实模型采样特征';
+    } else if (diversity >= 0.5) {
+      diversityScore = 32;
+      diversityNote = '内容存在部分重复';
+    } else if (diversity > 0) {
+      diversityScore = 14;
+      diversityNote = '内容大量重复，疑似固定模板或缓存';
+    } else {
+      diversityScore = 0;
+      diversityNote = '无有效内容';
+    }
+    const score = Math.round(Math.min(100, validityScore + diversityScore));
+
+    let explanation: string;
+    if (validity < 0.5) {
+      explanation = `多次采样中 ${nonEmpty}/${contents.length} 次返回有效内容，有效率偏低，疑似异常。`;
+    } else {
+      explanation = `统计指纹：有效率 ${(validity * 100).toFixed(0)}%，内容去重率 ${(diversity * 100).toFixed(0)}%（${uniqueContents}/${nonEmpty} 互异）。${diversityNote}。`;
+    }
     return {
       dimension: 'signature_fingerprint',
       verdict: scoreToVerdict(score, true),
       score,
-      explanation:
-        score >= 80
-          ? '输出统计指纹（长度分布、离散度）与目标模型基线相符。'
-          : `指纹偏离基线：${inRange}/${lens.length} 次输出长度落在典型区间，离散度 ${(diversity * 100).toFixed(0)}%。显著偏离可能为替换/降智或缓存。`,
+      explanation,
     };
   },
 };

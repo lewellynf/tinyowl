@@ -1,21 +1,26 @@
 import type { ModelProfile } from './types.js';
 
-/** 各目标模型基线画像（身份关键词、是否含思维链、典型长度） */
+const OPENAI_KW = ['gpt', 'openai', 'chatgpt'];
+const ANTHROPIC_KW = ['claude', 'anthropic'];
+const GOOGLE_KW = ['gemini', 'google', 'bard'];
+
+/** 各目标模型基线画像（身份关键词、竞品关键词、是否含思维链） */
 const PROFILES: Record<string, ModelProfile> = {
-  'gpt-5.5': { model: 'gpt-5.5', identityKeywords: ['gpt', 'openai', 'chatgpt', 'gpt-5'], hasReasoning: true, typicalLenRange: [50, 4000] },
-  'gpt-5.4': { model: 'gpt-5.4', identityKeywords: ['gpt', 'openai', 'chatgpt', 'gpt-5'], hasReasoning: true, typicalLenRange: [50, 4000] },
-  'claude-opus-4-8': { model: 'claude-opus-4-8', identityKeywords: ['claude', 'anthropic', 'opus'], hasReasoning: true, typicalLenRange: [80, 6000] },
-  'claude-opus-4-7': { model: 'claude-opus-4-7', identityKeywords: ['claude', 'anthropic', 'opus'], hasReasoning: true, typicalLenRange: [80, 6000] },
-  'claude-opus-4-6': { model: 'claude-opus-4-6', identityKeywords: ['claude', 'anthropic', 'opus'], hasReasoning: true, typicalLenRange: [80, 6000] },
-  'claude-sonnet-4-6': { model: 'claude-sonnet-4-6', identityKeywords: ['claude', 'anthropic', 'sonnet'], hasReasoning: false, typicalLenRange: [50, 5000] },
-  'gemini-3.1-pro': { model: 'gemini-3.1-pro', identityKeywords: ['gemini', 'google', 'bard'], hasReasoning: true, typicalLenRange: [50, 5000] },
+  'gpt-5.5': { model: 'gpt-5.5', vendor: 'openai', identityKeywords: OPENAI_KW, competitorKeywords: [...ANTHROPIC_KW, ...GOOGLE_KW], hasReasoning: true },
+  'gpt-5.4': { model: 'gpt-5.4', vendor: 'openai', identityKeywords: OPENAI_KW, competitorKeywords: [...ANTHROPIC_KW, ...GOOGLE_KW], hasReasoning: true },
+  'claude-opus-4-8': { model: 'claude-opus-4-8', vendor: 'anthropic', identityKeywords: ANTHROPIC_KW, competitorKeywords: [...OPENAI_KW, ...GOOGLE_KW], hasReasoning: true },
+  'claude-opus-4-7': { model: 'claude-opus-4-7', vendor: 'anthropic', identityKeywords: ANTHROPIC_KW, competitorKeywords: [...OPENAI_KW, ...GOOGLE_KW], hasReasoning: true },
+  'claude-opus-4-6': { model: 'claude-opus-4-6', vendor: 'anthropic', identityKeywords: ANTHROPIC_KW, competitorKeywords: [...OPENAI_KW, ...GOOGLE_KW], hasReasoning: true },
+  'claude-sonnet-4-6': { model: 'claude-sonnet-4-6', vendor: 'anthropic', identityKeywords: ANTHROPIC_KW, competitorKeywords: [...OPENAI_KW, ...GOOGLE_KW], hasReasoning: false },
+  'gemini-3.1-pro': { model: 'gemini-3.1-pro', vendor: 'google', identityKeywords: GOOGLE_KW, competitorKeywords: [...OPENAI_KW, ...ANTHROPIC_KW], hasReasoning: true },
 };
 
 const DEFAULT_PROFILE: ModelProfile = {
   model: 'unknown',
+  vendor: 'unknown',
   identityKeywords: [],
+  competitorKeywords: [],
   hasReasoning: false,
-  typicalLenRange: [10, 8000],
 };
 
 export function getModelProfile(model: string): ModelProfile {

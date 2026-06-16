@@ -23,12 +23,13 @@ export interface RelaySample {
 /** 目标模型基线画像，用于身份/指纹比对 */
 export interface ModelProfile {
   model: string;
-  /** 该模型自述身份时常见的关键词（任一命中即视为一致） */
+  vendor: 'openai' | 'anthropic' | 'google' | 'unknown';
+  /** 本模型/厂商自述身份时常见的关键词（命中视为身份一致） */
   identityKeywords: string[];
+  /** 其它厂商关键词（自述命中这些 = 疑似身份替换） */
+  competitorKeywords: string[];
   /** 是否为具备显式思维链/推理痕迹的模型 */
   hasReasoning: boolean;
-  /** 典型输出长度区间（字符），用于指纹粗判 */
-  typicalLenRange: [number, number];
 }
 
 export interface ProbeContext {
