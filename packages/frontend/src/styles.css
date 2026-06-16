@@ -1,0 +1,80 @@
+:root {
+  --owl-primary: #6b4fbb;
+  --owl-bg: #f5f6fa;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--owl-bg);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei', sans-serif;
+}
+
+.to-hero {
+  background: linear-gradient(135deg, #6b4fbb 0%, #8b6fd8 60%, #a98fe8 100%);
+  color: #fff;
+  padding: 48px 24px 56px;
+  text-align: center;
+}
+
+.to-hero h1 {
+  font-size: 34px;
+  margin: 0 0 8px;
+  font-weight: 700;
+}
+
+.to-hero p {
+  font-size: 15px;
+  opacity: 0.92;
+  margin: 0;
+}
+
+.to-section {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.to-card {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  padding: 24px;
+}
+
+.to-detect-card {
+  max-width: 720px;
+  margin: -40px auto 0;
+  position: relative;
+  z-index: 2;
+}
+
+.to-privacy-tip {
+  font-size: 13px;
+  color: #8a8a9a;
+  margin-top: 8px;
+}
+
+.to-footer {
+  text-align: center;
+  color: #9a9aaa;
+  font-size: 13px;
+  padding: 32px 16px;
+}
+
+.to-score-ring {
+  text-align: center;
+}
+
+.to-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--owl-primary);
+}

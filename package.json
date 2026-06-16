@@ -1,0 +1,19 @@
+{
+  "name": "tinyowl",
+  "version": "0.1.0",
+  "private": true,
+  "description": "tinyowl（猫头鹰评测）- API 中转站评测与验证平台",
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm --parallel --filter \"./packages/*\" dev",
+    "build": "pnpm --filter @tinyowl/shared build && pnpm --filter @tinyowl/backend build && pnpm --filter @tinyowl/frontend build",
+    "db:migrate": "pnpm --filter @tinyowl/backend db:migrate",
+    "db:seed": "pnpm --filter @tinyowl/backend db:seed",
+    "test": "pnpm --filter @tinyowl/backend test",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@10.28.2"
+}
