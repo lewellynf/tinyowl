@@ -1,18 +1,16 @@
 import { useState } from 'react';
 import { Button, Form, Input, Select, Switch, Alert, Typography } from 'antd';
 import { SafetyOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
 import { SUPPORTED_MODELS } from '@tinyowl/shared';
 import { createDetection, extractError } from '../api.js';
 
 const { Text } = Typography;
 
-export default function DetectionForm() {
+export default function DetectionForm({ onStarted }: { onStarted?: (taskId: string) => void }) {
   const [form] = Form.useForm();
   const [cacheOn, setCacheOn] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const navigate = useNavigate();
 
   const onFinish = async (values: {
     baseUrl: string;
@@ -29,7 +27,7 @@ export default function DetectionForm() {
         targetModel: values.targetModel,
         cacheDetection: values.cacheDetection ?? false,
       });
-      navigate(`/result/${taskId}`);
+      onStarted?.(taskId);
     } catch (e) {
       setError(extractError(e));
     } finally {

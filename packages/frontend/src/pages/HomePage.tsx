@@ -1,10 +1,21 @@
-import { Typography, Divider } from 'antd';
+import { useRef, useState } from 'react';
+import { Typography, Divider, Button, Space } from 'antd';
 import DetectionForm from '../components/DetectionForm.js';
+import DetectionPanel from '../components/DetectionPanel.js';
 import LeaderboardTable from '../components/LeaderboardTable.js';
 
 const { Title, Paragraph } = Typography;
 
 export default function HomePage() {
+  const [taskId, setTaskId] = useState<string | null>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  const handleStarted = (id: string) => {
+    setTaskId(id);
+    // 平滑滚动到结果区，但不离开本页
+    setTimeout(() => panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+  };
+
   return (
     <div>
       <div className="to-hero">
@@ -14,8 +25,25 @@ export default function HomePage() {
 
       <div className="to-section">
         <div className="to-card to-detect-card">
-          <Title level={4} style={{ marginTop: 0 }}>接口检测</Title>
-          <DetectionForm />
+          <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+            <Title level={4} style={{ marginTop: 0, marginBottom: 16 }}>接口检测</Title>
+            {taskId && (
+              <Button type="link" onClick={() => setTaskId(null)}>
+                ← 返回检测表单
+              </Button>
+            )}
+          </Space>
+          {taskId ? (
+            <div ref={panelRef}>
+              <DetectionPanel taskId={taskId} />
+              <Divider />
+              <Button block onClick={() => setTaskId(null)}>
+                再检测一个中转站
+              </Button>
+            </div>
+          ) : (
+            <DetectionForm onStarted={handleStarted} />
+          )}
         </div>
       </div>
 
