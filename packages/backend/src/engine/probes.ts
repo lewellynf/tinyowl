@@ -1,5 +1,6 @@
 import type { Dimension, DimensionResult, Verdict } from '@tinyowl/shared';
-import type { ModelProfile, RelaySample } from './types.js';
+import type { ModelProfile, ProvenanceSignals, RelaySample } from './types.js';
+import { VENDOR_SIGNATURES, type VendorSignature } from './profiles.js';
 
 /** 维度判定纯函数集合。输入采样样本与目标画像，输出维度结论。 */
 export interface DimensionProbe {
@@ -265,6 +266,83 @@ export const fingerprintProbe: DimensionProbe = {
   },
 };
 
+/** 判断一组来源信号指向哪个厂商，返回各厂商命中分。 */
+function scoreVendor(sig: VendorSignature, signals: ProvenanceSignals[]): number {
+  let hits = 0;
+  for (const s of signals) {
+    if (s.idPrefix && sig.idPrefixes.some((p) => s.idPrefix === p)) hits += 3;
+    const usage = (s.usageKeys ?? []).join(',').toLowerCase();
+    if (sig.usageMarkers.some((m) => usage.includes(m.toLowerCase()))) hits += 3;
+    if (s.finishReason && sig.finishReasons.includes(s.finishReason)) hits += 1;
+    if (sig.systemFingerprint && s.hasSystemFingerprint) hits += 2;
+  }
+  return hits;
+}
+
+/** 7. 协议来源指纹：响应元数据厂商一致性（最难伪造的强信号）
+ *  原理：响应的 id 前缀、usage 特有字段、stop_reason 词表、system_fingerprint
+ *  会暴露上游真实厂商。声称 Claude 却带 OpenAI 元数据（或反之）= 强替换信号。
+ *  这些元数据难以全部伪造，廉价中转常直接透传上游而露馅。 */
+export const provenanceProbe: DimensionProbe = {
+  dimension: 'provenance_fingerprint',
+  evaluate(samples, target) {
+    const signals = samples
+      .filter((s) => !s.timedOut && s.ok && s.provenance)
+      .map((s) => s.provenance!) as ProvenanceSignals[];
+    if (signals.length === 0 || target.vendor === 'unknown') {
+      return { dimension: 'provenance_fingerprint', verdict: 'inconclusive', score: 0, explanation: '无可用的协议元数据，或目标厂商未知，无法判定来源。' };
+    }
+
+    const expected = target.vendor; // openai | anthropic | google
+    const scores: Record<string, number> = {
+      openai: scoreVendor(VENDOR_SIGNATURES.openai, signals),
+      anthropic: scoreVendor(VENDOR_SIGNATURES.anthropic, signals),
+      google: scoreVendor(VENDOR_SIGNATURES.google, signals),
+    };
+    const expectedScore = scores[expected];
+    // 找出最强的“竞品”厂商命中
+    let topOther = '';
+    let topOtherScore = 0;
+    for (const v of ['openai', 'anthropic', 'google']) {
+      if (v === expected) continue;
+      if (scores[v] > topOtherScore) {
+        topOtherScore = scores[v];
+        topOther = v;
+      }
+    }
+
+    const vendorCn: Record<string, string> = { openai: 'OpenAI', anthropic: 'Anthropic', google: 'Google' };
+
+    // 竞品信号强于目标厂商 → 判定来源冲突（强替换信号）
+    if (topOtherScore > expectedScore && topOtherScore >= 3) {
+      return {
+        dimension: 'provenance_fingerprint',
+        verdict: 'fail',
+        score: 0,
+        explanation: `响应元数据指向 ${vendorCn[topOther]}（命中分 ${topOtherScore}），而非目标厂商 ${vendorCn[expected]}（命中分 ${expectedScore}）。检测到上游来源冲突，强烈疑似模型身份替换。`,
+      };
+    }
+
+    if (expectedScore >= 3) {
+      const score = expectedScore >= 5 ? 100 : 85;
+      return {
+        dimension: 'provenance_fingerprint',
+        verdict: 'pass',
+        score,
+        explanation: `响应元数据（id 前缀、usage 特有字段、结束原因等）与目标厂商 ${vendorCn[expected]} 一致，命中分 ${expectedScore}。`,
+      };
+    }
+
+    // 元数据被规范化（无厂商特征）：无法证伪，但也失去强证据
+    return {
+      dimension: 'provenance_fingerprint',
+      verdict: 'suspect',
+      score: 55,
+      explanation: `响应元数据未见 ${vendorCn[expected]} 的厂商特征，也未见明显竞品特征。中转站可能已规范化元数据，来源不可证实。`,
+    };
+  },
+};
+
 export const ALL_PROBES: DimensionProbe[] = [
   protocolProbe,
   structureProbe,
@@ -272,4 +350,5 @@ export const ALL_PROBES: DimensionProbe[] = [
   identityProbe,
   reasoningProbe,
   fingerprintProbe,
+  provenanceProbe,
 ];

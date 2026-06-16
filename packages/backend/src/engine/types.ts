@@ -1,5 +1,19 @@
 import type { Dimension } from '@tinyowl/shared';
 
+/** 从响应中提取的协议来源元数据（用于 provenance 指纹判定） */
+export interface ProvenanceSignals {
+  /** 响应 id 前缀，如 'msg_'(Anthropic) / 'chatcmpl-'(OpenAI) / 'gen-' 等 */
+  idPrefix?: string;
+  /** usage 对象中出现的字段名集合（厂商特有字段是强信号） */
+  usageKeys?: string[];
+  /** 结束原因取值，如 'stop'/'end_turn'/'max_tokens' */
+  finishReason?: string;
+  /** OpenAI 特有的 system_fingerprint 是否存在 */
+  hasSystemFingerprint?: boolean;
+  /** 顶层字段名集合 */
+  topLevelKeys?: string[];
+}
+
 /** 单次中转站采样的原始记录（由采样层产生，喂给纯函数判定层） */
 export interface RelaySample {
   /** 探测意图，用于让各 probe 取用相关样本 */
@@ -18,6 +32,8 @@ export interface RelaySample {
   latencyMs?: number;
   /** 探测题元信息（知识题对错判定用） */
   meta?: Record<string, unknown>;
+  /** 协议来源元数据指纹 */
+  provenance?: ProvenanceSignals;
 }
 
 /** 目标模型基线画像，用于身份/指纹比对 */

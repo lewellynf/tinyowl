@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-/** 六个检测维度 */
+/** 检测维度 */
 export const DimensionSchema = z.enum([
   'protocol_consistency', // 返回协议一致性
   'response_structure', // 响应结构
@@ -8,6 +8,7 @@ export const DimensionSchema = z.enum([
   'identity_consistency', // 身份一致性
   'reasoning_trace', // 思维链痕迹
   'signature_fingerprint', // 签名指纹
+  'provenance_fingerprint', // 协议来源指纹（响应元数据厂商一致性）
 ]);
 export type Dimension = z.infer<typeof DimensionSchema>;
 
@@ -19,6 +20,7 @@ export const DIMENSION_LABELS: Record<Dimension, string> = {
   identity_consistency: '身份一致性',
   reasoning_trace: '思维链痕迹',
   signature_fingerprint: '签名指纹',
+  provenance_fingerprint: '协议来源指纹',
 };
 
 export const VerdictSchema = z.enum(['pass', 'suspect', 'fail', 'inconclusive']);

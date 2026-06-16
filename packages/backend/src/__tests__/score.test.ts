@@ -10,6 +10,7 @@ const ALL: Dimension[] = [
   'identity_consistency',
   'reasoning_trace',
   'signature_fingerprint',
+  'provenance_fingerprint',
 ];
 
 function dim(d: Dimension, score: number, verdict: Verdict): DimensionResult {
@@ -56,11 +57,34 @@ describe('aggregateScore', () => {
       }),
     );
   });
+
+  it('来源冲突（provenance fail）硬封顶总分到 30，即使其它维度满分', () => {
+    const dims = [
+      dim('protocol_consistency', 100, 'pass'),
+      dim('response_structure', 100, 'pass'),
+      dim('knowledge_qa', 100, 'pass'),
+      dim('identity_consistency', 100, 'pass'),
+      dim('reasoning_trace', 100, 'pass'),
+      dim('signature_fingerprint', 100, 'pass'),
+      dim('provenance_fingerprint', 0, 'fail'),
+    ];
+    expect(aggregateScore(dims)).toBeLessThanOrEqual(30);
+  });
+
+  it('provenance pass 时按权重正常计分（不封顶）', () => {
+    const dims = ALL.map((d) => dim(d, 100, 'pass'));
+    expect(aggregateScore(dims)).toBe(100);
+  });
 });
 
 describe('deriveWarnings', () => {
   it('身份维度 fail → identity_swap', () => {
     const dims = [dim('identity_consistency', 20, 'fail')];
+    expect(deriveWarnings(dims)).toContain('identity_swap');
+  });
+
+  it('来源指纹 fail → identity_swap', () => {
+    const dims = [dim('provenance_fingerprint', 0, 'fail')];
     expect(deriveWarnings(dims)).toContain('identity_swap');
   });
 

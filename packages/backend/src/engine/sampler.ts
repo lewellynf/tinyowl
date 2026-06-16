@@ -37,6 +37,27 @@ function extractReasoning(body: any): string | undefined {
   return choice?.message?.reasoning_content ?? choice?.message?.reasoning ?? body?.reasoning ?? undefined;
 }
 
+/** id 前缀：取首个非字母数字分隔符前的部分（含分隔符），如 'msg_' / 'chatcmpl-' / 'gen-' */
+function idPrefixOf(id: unknown): string | undefined {
+  if (typeof id !== 'string' || id.length === 0) return undefined;
+  const m = id.match(/^([A-Za-z]+[-_])/);
+  return m ? m[1] : undefined;
+}
+
+/** 从已解析的响应体（非流式）或单个流式分块提取协议来源指纹 */
+function extractProvenance(obj: any): import('./types.js').ProvenanceSignals | undefined {
+  if (!obj || typeof obj !== 'object') return undefined;
+  const usage = obj.usage;
+  const choice = obj.choices?.[0];
+  return {
+    idPrefix: idPrefixOf(obj.id),
+    usageKeys: usage && typeof usage === 'object' ? Object.keys(usage) : undefined,
+    finishReason: choice?.finish_reason ?? choice?.stop_reason ?? obj.stop_reason ?? undefined,
+    hasSystemFingerprint: obj.system_fingerprint != null,
+    topLevelKeys: Object.keys(obj),
+  };
+}
+
 /**
  * 调用中转站 /v1/chat/completions 采集一次样本。
  * 单轮 60s 超时 → 标记 timeout 并返回（REQ-3.10）。
@@ -71,8 +92,10 @@ export async function callRelay(opts: ChatCallOptions): Promise<RelaySample> {
 
     if (opts.stream) {
       const streamRaw = await res.body.text();
-      // 从 SSE 分块中拼接 delta 内容
+      // 从 SSE 分块中拼接 delta 内容，并合并提取来源指纹（id/usage 常出现在不同分块）
       let content = '';
+      const prov: import('./types.js').ProvenanceSignals = {};
+      const usageKeySet = new Set<string>();
       for (const line of streamRaw.split('\n')) {
         const t = line.trim();
         if (!t.startsWith('data:')) continue;
@@ -81,10 +104,19 @@ export async function callRelay(opts: ChatCallOptions): Promise<RelaySample> {
         try {
           const j = JSON.parse(payload);
           content += j?.choices?.[0]?.delta?.content ?? '';
+          const p = extractProvenance(j);
+          if (p) {
+            if (p.idPrefix && !prov.idPrefix) prov.idPrefix = p.idPrefix;
+            if (p.finishReason) prov.finishReason = p.finishReason;
+            if (p.hasSystemFingerprint) prov.hasSystemFingerprint = true;
+            for (const k of p.usageKeys ?? []) usageKeySet.add(k);
+            if (p.topLevelKeys && !prov.topLevelKeys) prov.topLevelKeys = p.topLevelKeys;
+          }
         } catch {
           /* 忽略非 JSON 分块 */
         }
       }
+      if (usageKeySet.size > 0) prov.usageKeys = [...usageKeySet];
       return {
         purpose: opts.purpose,
         ok: status >= 200 && status < 300,
@@ -94,6 +126,7 @@ export async function callRelay(opts: ChatCallOptions): Promise<RelaySample> {
         content,
         latencyMs: Date.now() - started,
         meta: opts.meta,
+        provenance: prov,
       };
     }
 
@@ -114,6 +147,7 @@ export async function callRelay(opts: ChatCallOptions): Promise<RelaySample> {
       reasoning: extractReasoning(body),
       latencyMs: Date.now() - started,
       meta: opts.meta,
+      provenance: extractProvenance(body),
     };
   } catch (err) {
     if (err instanceof AuthFailedError) throw err;

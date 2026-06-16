@@ -26,6 +26,7 @@ const DIMENSION_ORDER: Dimension[] = [
   'identity_consistency',
   'reasoning_trace',
   'signature_fingerprint',
+  'provenance_fingerprint',
 ];
 
 /**

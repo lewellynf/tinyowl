@@ -4,12 +4,14 @@ import {
   identityProbe,
   knowledgeProbe,
   protocolProbe,
+  provenanceProbe,
   structureProbe,
 } from '../engine/probes.js';
 import { getModelProfile } from '../engine/profiles.js';
 import type { RelaySample } from '../engine/types.js';
 
 const opus = getModelProfile('claude-opus-4-6');
+const gpt = getModelProfile('gpt-5.5');
 
 describe('protocolProbe', () => {
   it('完整 OpenAI 协议字段 → pass', () => {
@@ -158,5 +160,79 @@ describe('fingerprintProbe（校准回归）', () => {
       content: '',
     }));
     expect(fingerprintProbe.evaluate(samples, opus).score).toBeLessThan(60);
+  });
+});
+
+describe('provenanceProbe（协议来源指纹）', () => {
+  // 回归用例：真品 Claude 中转泄露 Anthropic 元数据 → pass（对齐 xiaomuai.cn）
+  it('目标 Claude，响应带 msg_ 前缀与 claude_cache 字段 → pass', () => {
+    const samples: RelaySample[] = [
+      {
+        purpose: 'identity',
+        ok: true,
+        timedOut: false,
+        provenance: {
+          idPrefix: 'msg_',
+          usageKeys: ['prompt_tokens', 'completion_tokens', 'claude_cache_creation_5_m_tokens'],
+          finishReason: 'stop',
+        },
+      },
+    ];
+    const r = provenanceProbe.evaluate(samples, opus);
+    expect(r.verdict).toBe('pass');
+  });
+
+  // 对抗用例：目标 Claude 但元数据是 OpenAI（chatcmpl- + system_fingerprint）→ fail
+  it('目标 Claude，响应却是 OpenAI 元数据 → fail（来源冲突）', () => {
+    const samples: RelaySample[] = [
+      {
+        purpose: 'identity',
+        ok: true,
+        timedOut: false,
+        provenance: {
+          idPrefix: 'chatcmpl-',
+          usageKeys: ['prompt_tokens', 'completion_tokens', 'prompt_tokens_details'],
+          finishReason: 'stop',
+          hasSystemFingerprint: true,
+        },
+      },
+    ];
+    const r = provenanceProbe.evaluate(samples, opus);
+    expect(r.verdict).toBe('fail');
+    expect(r.score).toBe(0);
+  });
+
+  it('目标 GPT，响应是标准 OpenAI 元数据 → pass', () => {
+    const samples: RelaySample[] = [
+      {
+        purpose: 'identity',
+        ok: true,
+        timedOut: false,
+        provenance: {
+          idPrefix: 'chatcmpl-',
+          usageKeys: ['prompt_tokens', 'completion_tokens', 'completion_tokens_details'],
+          hasSystemFingerprint: true,
+        },
+      },
+    ];
+    expect(provenanceProbe.evaluate(samples, gpt).verdict).toBe('pass');
+  });
+
+  // 元数据被规范化（无任何厂商特征）→ suspect（无法证实来源）
+  it('元数据被规范化、无厂商特征 → suspect', () => {
+    const samples: RelaySample[] = [
+      {
+        purpose: 'identity',
+        ok: true,
+        timedOut: false,
+        provenance: { idPrefix: 'gen-', usageKeys: ['prompt_tokens', 'completion_tokens', 'total_tokens'] },
+      },
+    ];
+    expect(provenanceProbe.evaluate(samples, opus).verdict).toBe('suspect');
+  });
+
+  it('无任何 provenance 信号 → inconclusive', () => {
+    const samples: RelaySample[] = [{ purpose: 'identity', ok: true, timedOut: false }];
+    expect(provenanceProbe.evaluate(samples, opus).verdict).toBe('inconclusive');
   });
 });

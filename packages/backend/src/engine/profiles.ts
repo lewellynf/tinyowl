@@ -27,6 +27,43 @@ export function getModelProfile(model: string): ModelProfile {
   return PROFILES[model] ?? { ...DEFAULT_PROFILE, model };
 }
 
+/** 各厂商的协议来源签名（响应元数据指纹）。难以伪造，是强鉴别信号。 */
+export interface VendorSignature {
+  vendor: 'openai' | 'anthropic' | 'google';
+  /** 该厂商响应 id 的典型前缀 */
+  idPrefixes: string[];
+  /** usage 中出现即强烈指向该厂商的特有字段（子串匹配） */
+  usageMarkers: string[];
+  /** 该厂商原生的结束原因取值 */
+  finishReasons: string[];
+  /** 是否会出现 OpenAI 特有的 system_fingerprint */
+  systemFingerprint: boolean;
+}
+
+export const VENDOR_SIGNATURES: Record<'openai' | 'anthropic' | 'google', VendorSignature> = {
+  openai: {
+    vendor: 'openai',
+    idPrefixes: ['chatcmpl-'],
+    usageMarkers: ['prompt_tokens_details', 'completion_tokens_details', 'reasoning_tokens'],
+    finishReasons: ['stop', 'length', 'tool_calls', 'content_filter', 'function_call'],
+    systemFingerprint: true,
+  },
+  anthropic: {
+    vendor: 'anthropic',
+    idPrefixes: ['msg_'],
+    usageMarkers: ['cache_creation_input_tokens', 'cache_read_input_tokens', 'claude_cache_creation'],
+    finishReasons: ['end_turn', 'max_tokens', 'stop_sequence', 'tool_use'],
+    systemFingerprint: false,
+  },
+  google: {
+    vendor: 'google',
+    idPrefixes: [],
+    usageMarkers: ['promptTokenCount', 'candidatesTokenCount', 'totalTokenCount'],
+    finishReasons: ['STOP', 'MAX_TOKENS', 'SAFETY', 'stop'],
+    systemFingerprint: false,
+  },
+};
+
 /** 已知答案的知识探测题库 */
 export interface KnowledgeQuestion {
   prompt: string;
