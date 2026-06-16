@@ -26,7 +26,7 @@ export default function App() {
     <Layout style={{ minHeight: '100vh', background: 'transparent' }}>
       <Header style={{ display: 'flex', alignItems: 'center', background: '#fff', boxShadow: '0 1px 8px rgba(0,0,0,0.06)', padding: '0 24px' }}>
         <Link to="/" className="to-brand" style={{ marginRight: 32 }}>
-          <img src="/owl.svg" alt="tinyowl" width={28} height={28} />
+          <img src="/owl.svg" alt="Tiny Owl" width={28} height={28} />
           猫头鹰评测
         </Link>
         <Menu
@@ -47,7 +47,7 @@ export default function App() {
           <Route path="/result/:taskId" element={<ResultPage />} />
         </Routes>
         <div className="to-footer">
-          <div>🦉 tinyowl 猫头鹰评测 · 挑选靠谱的 API 中转站</div>
+          <div>🦉 Tiny Owl 猫头鹰评测 · 挑选靠谱的 API 中转站</div>
           <div style={{ marginTop: 6 }}>
             本检测为低成本技术性验证，非法律审计，不保证 100% 准确 ·{' '}
             <a href="https://github.com/lewellynf/tinyowl" target="_blank" rel="noreferrer">GitHub</a> · © 2026 tinyowl.cn

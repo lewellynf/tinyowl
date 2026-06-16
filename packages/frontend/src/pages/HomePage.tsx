@@ -19,7 +19,7 @@ export default function HomePage() {
   return (
     <div>
       <div className="to-hero">
-        <h1>🦉 猫头鹰评测 tinyowl</h1>
+        <h1>🦉 猫头鹰评测 Tiny Owl</h1>
         <p>对 API 中转站进行多维度技术检测，识别模型身份替换、降智等风险，挑选靠谱的中转站</p>
       </div>
 

@@ -61,7 +61,7 @@ export default function FaqPage() {
             },
             {
               key: '3',
-              label: 'tinyowl 的检测原理是什么？六个维度分别检测什么？',
+              label: 'Tiny Owl 的检测原理是什么？六个维度分别检测什么？',
               children: (
                 <ul style={{ paddingLeft: 18 }}>
                   <li>
