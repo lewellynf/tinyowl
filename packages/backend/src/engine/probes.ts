@@ -1,6 +1,11 @@
 import type { Dimension, DimensionResult, Verdict } from '@tinyowl/shared';
 import type { ModelProfile, ProvenanceSignals, RelaySample } from './types.js';
-import { VENDOR_SIGNATURES, type VendorSignature } from './profiles.js';
+import {
+  KNOWN_MODEL_VENDORS,
+  THIRD_PARTY_USAGE_MARKERS,
+  VENDOR_SIGNATURES,
+  type VendorSignature,
+} from './profiles.js';
 
 /** 维度判定纯函数集合。输入采样样本与目标画像，输出维度结论。 */
 export interface DimensionProbe {
@@ -294,6 +299,40 @@ export const provenanceProbe: DimensionProbe = {
     }
 
     const expected = target.vendor; // openai | anthropic | google
+    const vendorCn: Record<string, string> = { openai: 'OpenAI', anthropic: 'Anthropic', google: 'Google' };
+
+    // ===== 铁证级前置检查：直接暴露第三方厂商的破绽 =====
+    // (a) model 字段回显 / system_fingerprint 出现他厂模型名（套壳最常忘记改写的地方）
+    for (const s of signals) {
+      const haystack = `${s.modelField ?? ''} ${s.systemFingerprintValue ?? ''}`.toLowerCase();
+      if (!haystack.trim()) continue;
+      for (const k of KNOWN_MODEL_VENDORS) {
+        if (haystack.includes(k.marker) && k.vendor !== expected) {
+          return {
+            dimension: 'provenance_fingerprint',
+            verdict: 'fail',
+            score: 0,
+            explanation: `响应的 model/system_fingerprint 字段出现「${k.label}」特征（实际为 ${s.modelField ?? s.systemFingerprintValue}），与目标厂商 ${vendorCn[expected]} 不符。几乎可断定为模型套壳替换。`,
+          };
+        }
+      }
+    }
+    // (b) usage 出现第三方厂商特有字段（如 DeepSeek 的 prompt_cache_hit_tokens）
+    for (const s of signals) {
+      const usage = (s.usageKeys ?? []).join(',').toLowerCase();
+      if (!usage) continue;
+      for (const tp of THIRD_PARTY_USAGE_MARKERS) {
+        if (tp.vendor !== expected && tp.markers.every((m) => usage.includes(m.toLowerCase()))) {
+          return {
+            dimension: 'provenance_fingerprint',
+            verdict: 'fail',
+            score: 0,
+            explanation: `响应 usage 含「${tp.label}」特有字段（${tp.markers.join('、')}），与目标厂商 ${vendorCn[expected]} 不符。强烈疑似第三方模型套壳替换。`,
+          };
+        }
+      }
+    }
+
     const scores: Record<string, number> = {
       openai: scoreVendor(VENDOR_SIGNATURES.openai, signals),
       anthropic: scoreVendor(VENDOR_SIGNATURES.anthropic, signals),
@@ -310,8 +349,6 @@ export const provenanceProbe: DimensionProbe = {
         topOther = v;
       }
     }
-
-    const vendorCn: Record<string, string> = { openai: 'OpenAI', anthropic: 'Anthropic', google: 'Google' };
 
     // 竞品信号强于目标厂商 → 判定来源冲突（强替换信号）
     if (topOtherScore > expectedScore && topOtherScore >= 3) {

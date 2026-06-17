@@ -16,3 +16,8 @@ packages/data/
 coverage/
 .vite/
 *.tsbuildinfo
+
+# huashu-design skill 安装产物（不属于项目代码）
+.agents/
+.kiro/skills/
+skills-lock.json

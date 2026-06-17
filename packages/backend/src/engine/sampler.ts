@@ -51,9 +51,11 @@ function extractProvenance(obj: any): import('./types.js').ProvenanceSignals | u
   const choice = obj.choices?.[0];
   return {
     idPrefix: idPrefixOf(obj.id),
+    modelField: typeof obj.model === 'string' ? obj.model : undefined,
     usageKeys: usage && typeof usage === 'object' ? Object.keys(usage) : undefined,
     finishReason: choice?.finish_reason ?? choice?.stop_reason ?? obj.stop_reason ?? undefined,
     hasSystemFingerprint: obj.system_fingerprint != null,
+    systemFingerprintValue: typeof obj.system_fingerprint === 'string' ? obj.system_fingerprint : undefined,
     topLevelKeys: Object.keys(obj),
   };
 }
@@ -107,8 +109,10 @@ export async function callRelay(opts: ChatCallOptions): Promise<RelaySample> {
           const p = extractProvenance(j);
           if (p) {
             if (p.idPrefix && !prov.idPrefix) prov.idPrefix = p.idPrefix;
+            if (p.modelField && !prov.modelField) prov.modelField = p.modelField;
             if (p.finishReason) prov.finishReason = p.finishReason;
             if (p.hasSystemFingerprint) prov.hasSystemFingerprint = true;
+            if (p.systemFingerprintValue && !prov.systemFingerprintValue) prov.systemFingerprintValue = p.systemFingerprintValue;
             for (const k of p.usageKeys ?? []) usageKeySet.add(k);
             if (p.topLevelKeys && !prov.topLevelKeys) prov.topLevelKeys = p.topLevelKeys;
           }

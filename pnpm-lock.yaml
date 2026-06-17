@@ -59,6 +59,15 @@ importers:
       '@ant-design/icons':
         specifier: ^5.5.1
         version: 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@fontsource/baloo-2':
+        specifier: ^5.2.7
+        version: 5.2.7
+      '@fontsource/geist-mono':
+        specifier: ^5.2.8
+        version: 5.2.8
+      '@fontsource/nunito':
+        specifier: ^5.2.7
+        version: 5.2.7
       '@tinyowl/shared':
         specifier: workspace:*
         version: link:../shared
@@ -550,6 +559,15 @@ packages:
 
   '@fastify/proxy-addr@5.1.0':
     resolution: {integrity: sha512-INS+6gh91cLUjB+PVHfu1UqcB76Sqtpyp7bnL+FYojhjygvOPA9ctiD/JDKsyD9Xgu4hUhCSJBPig/w7duNajw==}
+
+  '@fontsource/baloo-2@5.2.7':
+    resolution: {integrity: sha512-RllEWCvjw0PqLey6hbNI2M8gdZy2CFCIHXXNIXC4V4xsRQeOgZ3OMx3uQ1u4LjJ16BGytZD6wE/VFU9st0VdDg==}
+
+  '@fontsource/geist-mono@5.2.8':
+    resolution: {integrity: sha512-YqZUb3X42GjRaHkibUNyE8K4Rk9A6I9Ez81YpJYiuJN4ggmTW2ixoQpa9EWCPfXZtIsCQJTyrDoV9OJOZO/UcA==}
+
+  '@fontsource/nunito@5.2.7':
+    resolution: {integrity: sha512-pmtBq0H9ex9nk+RtJYEJOD9pag393iHETnl/PVKleF4i06cd0ttngK5ZCTgYb5eOqR3Xdlrjtev8m7bmgYprew==}
 
   '@jridgewell/gen-mapping@0.3.13':
     resolution: {integrity: sha512-2kkt/7niJ6MgEPxF0bYdQ6etZaA+fQvDcLKckhy1yIQOzaoKjBBjSj63/aLVjYE3qhRt5dvM+uUyfCg6UKCBbA==}
@@ -2236,6 +2254,12 @@ snapshots:
     dependencies:
       '@fastify/forwarded': 3.0.1
       ipaddr.js: 2.4.0
+
+  '@fontsource/baloo-2@5.2.7': {}
+
+  '@fontsource/geist-mono@5.2.8': {}
+
+  '@fontsource/nunito@5.2.7': {}
 
   '@jridgewell/gen-mapping@0.3.13':
     dependencies:
