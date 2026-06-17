@@ -16,7 +16,7 @@ const NAV = [
   { key: '/status', label: <Link to="/status">官方状态</Link> },
   { key: '/history', label: <Link to="/history">检测历史</Link> },
   { key: '/faq', label: <Link to="/faq">常见问题</Link> },
-  { key: '/admin', label: <Link to="/admin">运营管理</Link> },
+  // 运营管理入口不在导航展示，直接访问 /admin 即可
 ];
 
 export default function App() {
