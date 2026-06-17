@@ -18,22 +18,6 @@ const DIMENSIONS = [
   { name: '综合满分', w: '100 分', priority: false },
 ];
 
-const DIM_DETAIL = [
-  { n: '01', name: '返回协议一致性', desc: 'id 前缀 / usage 字段 / 结束原因', w: 'W·18', priority: false },
-  { n: '02', name: '响应结构', desc: 'SSE 帧分布、tool_calls 形态', w: 'W·12', priority: false },
-  { n: '03', name: '知识问答结果', desc: '多轮事实性问题，比对官方答案分布', w: 'W·14', priority: false },
-  { n: '04', name: '身份一致性', desc: '自报 model id、能力声明是否自洽', w: 'W·14', priority: false },
-  { n: '05', name: '思维链痕迹', desc: 'reasoning_trace 是否符合该模型已知模式', w: 'W·10', priority: false },
-  { n: '06', name: '签名指纹', desc: '可观测的统计签名（tokenization / logprob）', w: 'W·10', priority: false },
-  {
-    n: '07',
-    name: '协议来源指纹',
-    desc: '响应元数据厂商一致性，识破高仿替换',
-    w: 'W·22',
-    priority: true,
-  },
-];
-
 export default function HomePage() {
   const [taskId, setTaskId] = useState<string | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -142,20 +126,15 @@ function HomeRest({
               </div>
             </div>
             <div className="card-soft">
-              <h3 style={{ fontSize: 20, fontWeight: 800, marginBottom: 20 }}>七维度检测体系</h3>
-              <div className="dim-list">
-                {DIM_DETAIL.map((d) => (
-                  <div key={d.n} className={d.priority ? 'dim-item priority' : 'dim-item'}>
-                    <div className="dim-n mono">{d.n}</div>
-                    <div className="dim-name">
-                      {d.name}
-                      {d.priority && <span className="dim-pill" style={{ marginLeft: 8 }}>最高权重</span>}
-                      <small>{d.desc}</small>
-                    </div>
-                    <div className="dim-w mono">{d.w}</div>
-                  </div>
-                ))}
-              </div>
+              <img
+                src="/seven-dim.png"
+                alt="七维度检测体系示意图"
+                className="seven-dim-img"
+              />
+              <h3 style={{ fontSize: 20, fontWeight: 800, marginBottom: 8 }}>七维度检测体系</h3>
+              <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 0 }}>
+                每个维度按权重加权汇总为 0–100 分，<strong style={{ color: 'var(--purple)' }}>协议来源指纹</strong>权重最高（22），最难伪造。
+              </p>
             </div>
           </div>
         </section>
