@@ -21,7 +21,7 @@ export interface ProvenanceSignals {
 /** 单次中转站采样的原始记录（由采样层产生，喂给纯函数判定层） */
 export interface RelaySample {
   /** 探测意图，用于让各 probe 取用相关样本 */
-  purpose: 'protocol' | 'structure' | 'knowledge' | 'identity' | 'reasoning' | 'fingerprint' | 'cache' | 'computation' | 'instruction' | 'injection' | 'trap';
+  purpose: 'protocol' | 'structure' | 'knowledge' | 'identity' | 'reasoning' | 'fingerprint' | 'cache' | 'computation' | 'instruction' | 'injection' | 'trap' | 'claude_code_verify' | 'structured_output';
   ok: boolean; // 该轮是否成功（非超时/网络错误）
   timedOut: boolean;
   httpStatus?: number;

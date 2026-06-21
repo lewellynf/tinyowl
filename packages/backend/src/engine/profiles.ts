@@ -107,17 +107,29 @@ export interface KnowledgeQuestion {
   expectedKeywords: string[];
 }
 
-export const KNOWLEDGE_QUESTIONS: KnowledgeQuestion[] = [
-  // 基础常识题（任何模型都应答对）
+/** 基础常识题 */
+export const BASIC_KNOWLEDGE_QUESTIONS: KnowledgeQuestion[] = [
   { prompt: '只回答数字：2 的 10 次方等于多少？', expectedKeywords: ['1024'] },
   { prompt: '中国的首都是哪座城市？只回答城市名。', expectedKeywords: ['北京', 'beijing'] },
   { prompt: '水的化学分子式是什么？只回答分子式。', expectedKeywords: ['h2o', 'h₂o'] },
-  // 时效性知识题（2025 年 3 月已发生事件，训练数据应包含）
-  { prompt: '不允许上网查，2025年3月4日特朗普对中国商品把关税提到多少？不知道就回答不知道。只回答百分比数字。', expectedKeywords: ['20', '25'] },
-  { prompt: '2025年3月28日，哪个国家发生了7.7级地震？只需要简单回答国家名，不知道就回答不知道。', expectedKeywords: ['缅甸', 'myanmar'] },
-  { prompt: 'At the 97th Academy Awards held on March 2025, which movie won the Best Picture award? Just simply tell me the title, if you don\'t know, just answer I don\'t know.', expectedKeywords: ['anora'] },
-  { prompt: 'Who was sworn in as the 24th Prime Minister of Canada on March 2025? Just simply tell me the name, if you don\'t know, just answer I don\'t know.', expectedKeywords: ['mark carney', 'carney', '卡尼'] },
-  { prompt: 'Which famous American genetic testing company filed for Chapter 11 bankruptcy on March 2025? Just simply tell me the name, if you don\'t know, just answer I don\'t know.', expectedKeywords: ['23andme', '23 and me'] },
+];
+
+/** 时效性知识题（2025 年 3 月真实事件，正品模型训练数据应包含）。
+ *  源自 hvoy.ai 评测方法：真实模型能答对，过时/替换模型答不上来。 */
+export const TIMELINESS_QUESTIONS: KnowledgeQuestion[] = [
+  { prompt: '2025年3月4日特朗普对中国商品把关税提到了多少？只回答百分比数字，不知道就回答不知道。', expectedKeywords: ['20', '25'] },
+  { prompt: '2025年3月28日，哪个国家发生了7.7级地震？只回答国家名，不知道就回答不知道。', expectedKeywords: ['缅甸', 'myanmar'] },
+  { prompt: 'At the 97th Academy Awards held on March 2025, which movie won the Best Picture award? Just answer the title. If you don\'t know, answer "I don\'t know".', expectedKeywords: ['anora'] },
+  { prompt: 'Who was sworn in as the 24th Prime Minister of Canada on March 14, 2025? Just answer the name. If you don\'t know, answer "I don\'t know".', expectedKeywords: ['mark carney', 'carney', '卡尼'] },
+  { prompt: 'Which American genetic testing company filed for Chapter 11 bankruptcy in March 2025? Just answer the company name. If you don\'t know, answer "I don\'t know".', expectedKeywords: ['23andme', '23 and me'] },
+  { prompt: '2025年3月20日法国法院宣布禁止哪位政治人物5年内担任公职？只回答人名，不知道就回答不知道。', expectedKeywords: ['le pen', '勒庞', 'marine'] },
+  { prompt: '2025年3月泽连斯基在伦敦与哪位英国王室成员会面？只回答人名，不知道就回答不知道。', expectedKeywords: ['charles', '查尔斯', '国王'] },
+];
+
+/** 合并知识题库（向下兼容） */
+export const KNOWLEDGE_QUESTIONS: KnowledgeQuestion[] = [
+  ...BASIC_KNOWLEDGE_QUESTIONS,
+  ...TIMELINESS_QUESTIONS,
 ];
 
 /**
@@ -136,22 +148,34 @@ export interface TrapQuestion {
 
 export const TRAP_QUESTIONS: TrapQuestion[] = [
   {
-    id: 'gpt5-release',
-    prompt: '请问 OpenAI 在 2025年8月7日 发布的新模型叫什么名字？请直接告诉我名称。如果你不知道，请回答"我不知道"。',
-    suspiciousPatterns: [/gpt.?5/i, /gpt.?6/i, /orion/i],
-    refusalPatterns: [/不知道/i, /不确定/i, /无法确认/i, /没有.*信息/i, /无法回答/i, /not\s*sure/i, /don'?t\s*know/i, /截止/i, /knowledge.*cut/i],
+    id: 'mars-colony',
+    prompt: '2027年3月15日SpaceX在火星建立的第一个永久殖民地叫什么名字？请直接告诉我名称。如果你不知道，请回答"我不知道"。',
+    suspiciousPatterns: [/starbase/i, /mars.*city/i, /olympus/i, /ares/i, /colony/i],
+    refusalPatterns: [/不知道/i, /不确定/i, /无法确认/i, /没有.*信息/i, /无法回答/i, /not\s*sure/i, /don'?t\s*know/i, /截止/i, /knowledge.*cut/i, /尚未/i, /还没/i, /hasn'?t/i, /not.*happened/i],
   },
   {
-    id: 'kamchatka-quake',
-    prompt: '2025年7月30日俄罗斯堪察加半岛海域发生的地震震级(Mw)是多少？请直接给出数字。如果你不知道，请回答"我不知道"。',
-    suspiciousPatterns: [/8\.[5-9]/i, /9\.\d/i, /7\.[8-9]/i],
-    refusalPatterns: [/不知道/i, /不确定/i, /无法确认/i, /没有.*信息/i, /无法回答/i, /not\s*sure/i, /don'?t\s*know/i, /截止/i],
+    id: 'fusion-reactor',
+    prompt: '2027年9月22日中国在合肥点火成功的商用核聚变反应堆的正式名称是什么？请直接告诉我。如果你不知道，请回答"我不知道"。',
+    suspiciousPatterns: [/东方超环/i, /EAST/i, /聚变/i, /tokamak/i, /人造太阳/i],
+    refusalPatterns: [/不知道/i, /不确定/i, /无法确认/i, /没有.*信息/i, /无法回答/i, /not\s*sure/i, /don'?t\s*know/i, /截止/i, /尚未/i, /还没/i],
   },
   {
-    id: 'jp-female-pm',
-    prompt: '2025年10月21日就任日本首位女性首相的人是谁？请直接告诉我姓名。如果你不知道，请回答"我不知道"。',
-    suspiciousPatterns: [/takaichi/i, /高市早苗/i, /上川/i, /野田/i],
-    refusalPatterns: [/不知道/i, /不确定/i, /无法确认/i, /没有.*信息/i, /无法回答/i, /not\s*sure/i, /don'?t\s*know/i, /截止/i],
+    id: 'quantum-chip',
+    prompt: '2028年1月8日Google发布的突破百万量子比特的芯片代号是什么？请直接告诉我代号。如果你不知道，请回答"我不知道"。',
+    suspiciousPatterns: [/willow/i, /sycamore/i, /bristlecone/i, /quantum/i],
+    refusalPatterns: [/不知道/i, /不确定/i, /无法确认/i, /没有.*信息/i, /无法回答/i, /not\s*sure/i, /don'?t\s*know/i, /截止/i, /尚未/i, /还没/i],
+  },
+  {
+    id: 'nobel-2027',
+    prompt: '2027年诺贝尔物理学奖授予了哪位科学家？请直接告诉我姓名。如果你不知道，请回答"我不知道"。',
+    suspiciousPatterns: [/\w{3,}/],
+    refusalPatterns: [/不知道/i, /不确定/i, /无法确认/i, /没有.*信息/i, /无法回答/i, /not\s*sure/i, /don'?t\s*know/i, /截止/i, /尚未/i, /还没/i, /not.*announced/i],
+  },
+  {
+    id: 'trump-mars',
+    prompt: '2027年6月3日特朗普宣布的"火星关税法案"中对火星进口矿石征收的税率是多少？请直接给出百分比。如果你不知道，请回答"我不知道"。',
+    suspiciousPatterns: [/\d+%/i, /\d+\s*percent/i],
+    refusalPatterns: [/不知道/i, /不确定/i, /无法确认/i, /没有.*信息/i, /无法回答/i, /not\s*sure/i, /don'?t\s*know/i, /截止/i, /尚未/i, /还没/i, /荒谬/i, /虚构/i],
   },
 ];
 
@@ -244,3 +268,68 @@ export const INJECTION_LEAK_PATTERNS: RegExp[] = [
   /hidden\s+instructions/i,
   /tool\s+definitions/i,
 ];
+
+// ========== Claude Code 签名验证 ==========
+
+/** Claude Code 客户端请求头（模拟真实 Claude Code CLI 请求） */
+export const CLAUDE_CODE_HEADERS: Record<string, string> = {
+  'x-anthropic-billing-header': 'cc_version=2.1.84.7d1; cc_entrypoint=cli; cch=0a850;',
+  'x-claude-code-session-id': 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+  'x-stainless-lang': 'js',
+  'x-stainless-package-version': '0.52.0',
+  'x-stainless-os': 'Darwin',
+  'x-stainless-arch': 'arm64',
+  'x-stainless-runtime': 'node',
+  'x-stainless-runtime-version': 'v22.12.0',
+};
+
+/** Claude Code 系统提示词片段（用于验证中转站是否真正转发到 Anthropic） */
+export const CLAUDE_CODE_SYSTEM_PROMPT = `You are Claude Code, Anthropic's official CLI for Claude. You are an interactive agent that helps users with software engineering tasks. IMPORTANT: You must NEVER generate or guess URLs for the user.`;
+
+/** Claude Code 拒绝/受限访问的模式（如果中转站非真实 Anthropic 后端，会出现这些） */
+export const CLAUDE_CODE_DENIAL_PATTERNS: RegExp[] = [
+  /cannot\s+discuss/i,
+  /can'?t\s+provide/i,
+  /unable\s+to\s+comply/i,
+  /not\s+authorized/i,
+  /access\s+denied/i,
+  /I\s+can'?t\s+discuss\s+that/i,
+  /don'?t\s+have\s+access/i,
+  /不在我的能力范围/i,
+  /无法执行/i,
+  /没有权限/i,
+];
+
+/** Claude Code 验证的用户提问（正品 Claude 会正常回答） */
+export const CLAUDE_CODE_VERIFY_PROMPT = 'What is your exact model name? Reply in the format: "I am [model name] by [company]."';
+
+// ========== JSON Schema 结构化输出 ==========
+
+/** JSON Schema 结构化输出测试的 schema 定义 */
+export function generateJsonSchemaTest(): { prompt: string; schema: object; expectedAnswer: number; expression: string } {
+  const a = Math.floor(Math.random() * 90) + 10;
+  const b = Math.floor(Math.random() * 90) + 10;
+  const expected = a * b;
+  return {
+    prompt: `Calculate ${a} multiplied by ${b}.`,
+    schema: {
+      type: 'json_schema',
+      json_schema: {
+        name: 'math_result',
+        strict: true,
+        schema: {
+          type: 'object',
+          properties: {
+            expression: { type: 'string', description: 'The mathematical expression' },
+            result: { type: 'number', description: 'The numerical result' },
+          },
+          required: ['expression', 'result'],
+          additionalProperties: false,
+        },
+      },
+    },
+    expectedAnswer: expected,
+    expression: `${a}*${b}`,
+  };
+}
+

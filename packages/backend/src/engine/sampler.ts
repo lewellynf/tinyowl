@@ -10,6 +10,12 @@ interface ChatCallOptions {
   timeoutMs: number;
   purpose: RelaySample['purpose'];
   meta?: Record<string, unknown>;
+  /** 额外请求头（用于 Claude Code 签名验证等） */
+  extraHeaders?: Record<string, string>;
+  /** response_format 参数（用于 JSON Schema 结构化输出测试） */
+  responseFormat?: object;
+  /** 系统提示词（单独传 system message） */
+  systemPrompt?: string;
 }
 
 /** 鉴权失败信号：调用方据此立即中止任务（REQ-3.9） */
@@ -69,18 +75,29 @@ export async function callRelay(opts: ChatCallOptions): Promise<RelaySample> {
   const url = joinUrl(opts.baseUrl, '/chat/completions');
   const started = Date.now();
   try {
+    // 构建消息列表（可选注入 system message）
+    const messages = opts.systemPrompt
+      ? [{ role: 'system', content: opts.systemPrompt }, ...opts.messages]
+      : opts.messages;
+
+    const reqBody: Record<string, unknown> = {
+      model: opts.model,
+      messages,
+      stream: opts.stream ?? false,
+      temperature: 0.7,
+    };
+    if (opts.responseFormat) {
+      reqBody.response_format = opts.responseFormat;
+    }
+
     const res = await request(url, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
         authorization: `Bearer ${opts.apiKey}`,
+        ...(opts.extraHeaders ?? {}),
       },
-      body: JSON.stringify({
-        model: opts.model,
-        messages: opts.messages,
-        stream: opts.stream ?? false,
-        temperature: 0.7,
-      }),
+      body: JSON.stringify(reqBody),
       headersTimeout: opts.timeoutMs,
       bodyTimeout: opts.timeoutMs,
     });

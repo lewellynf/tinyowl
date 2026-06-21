@@ -225,55 +225,97 @@ export const reasoningProbe: DimensionProbe = {
   },
 };
 
-/** 6. 签名指纹：基于多次采样的统计指纹（REQ-3.8）
+/** 6. 签名指纹：基于多次采样的统计指纹 + Claude Code 签名验证（REQ-3.8）
  *  关键原则：判缓存/模板要看「内容是否重复」，而非「长度是否相同」——
  *  正品模型在固定格式下（如中文四行诗）长度天然一致，但内容各不相同。
- *  方法学参考「基于秩的均匀性检验」：用响应内容的分布形态与基线比对。 */
+ *  Claude Code 验证：发送 Claude Code 客户端特征头和系统提示词，
+ *  正品 Anthropic 后端会正常响应；非 Anthropic 后端可能拒绝或行为异常。 */
 export const fingerprintProbe: DimensionProbe = {
   dimension: 'signature_fingerprint',
   evaluate(samples) {
-    const relevant = samples.filter((s) => s.purpose === 'fingerprint' && !s.timedOut && s.ok);
-    if (relevant.length < 2) {
+    const fingerprints = samples.filter((s) => s.purpose === 'fingerprint' && !s.timedOut && s.ok);
+    const ccVerify = samples.filter((s) => s.purpose === 'claude_code_verify' && !s.timedOut);
+
+    if (fingerprints.length < 2 && ccVerify.length === 0) {
       return { dimension: 'signature_fingerprint', verdict: 'inconclusive', score: 0, explanation: '指纹采样不足（需至少 2 次有效采样）。' };
     }
-    const contents = relevant.map((s) => (s.content ?? '').trim());
-    const nonEmpty = contents.filter((c) => c.length > 0).length;
-    const validity = nonEmpty / contents.length; // 有效响应占比
 
-    // 内容去重率：同一 prompt 多次返回，正品应高度多样
-    const uniqueContents = new Set(contents.filter((c) => c.length > 0)).size;
-    const diversity = nonEmpty > 0 ? uniqueContents / nonEmpty : 0;
+    let totalScore = 0;
+    let totalWeight = 0;
+    const explanations: string[] = [];
 
-    // 有效性占 55 分；内容多样性占 45 分
-    const validityScore = validity * 55;
-    let diversityScore: number;
-    let diversityNote: string;
-    if (diversity >= 0.8) {
-      diversityScore = 45;
-      diversityNote = '内容多样性高，符合真实模型采样特征';
-    } else if (diversity >= 0.5) {
-      diversityScore = 32;
-      diversityNote = '内容存在部分重复';
-    } else if (diversity > 0) {
-      diversityScore = 14;
-      diversityNote = '内容大量重复，疑似固定模板或缓存';
-    } else {
-      diversityScore = 0;
-      diversityNote = '无有效内容';
+    // 统计指纹部分（权重 60%）
+    if (fingerprints.length >= 2) {
+      const contents = fingerprints.map((s) => (s.content ?? '').trim());
+      const nonEmpty = contents.filter((c) => c.length > 0).length;
+      const validity = nonEmpty / contents.length;
+      const uniqueContents = new Set(contents.filter((c) => c.length > 0)).size;
+      const diversity = nonEmpty > 0 ? uniqueContents / nonEmpty : 0;
+
+      const validityScore = validity * 55;
+      let diversityScore: number;
+      let diversityNote: string;
+      if (diversity >= 0.8) {
+        diversityScore = 45;
+        diversityNote = '内容多样性高';
+      } else if (diversity >= 0.5) {
+        diversityScore = 32;
+        diversityNote = '内容存在部分重复';
+      } else if (diversity > 0) {
+        diversityScore = 14;
+        diversityNote = '内容大量重复，疑似缓存';
+      } else {
+        diversityScore = 0;
+        diversityNote = '无有效内容';
+      }
+      const fpScore = Math.min(100, validityScore + diversityScore);
+      totalScore += fpScore * 0.6;
+      totalWeight += 0.6;
+      explanations.push(`统计指纹：去重率 ${(diversity * 100).toFixed(0)}%（${uniqueContents}/${nonEmpty}），${diversityNote}`);
     }
-    const score = Math.round(Math.min(100, validityScore + diversityScore));
 
-    let explanation: string;
-    if (validity < 0.5) {
-      explanation = `多次采样中 ${nonEmpty}/${contents.length} 次返回有效内容，有效率偏低，疑似异常。`;
-    } else {
-      explanation = `统计指纹：有效率 ${(validity * 100).toFixed(0)}%，内容去重率 ${(diversity * 100).toFixed(0)}%（${uniqueContents}/${nonEmpty} 互异）。${diversityNote}。`;
+    // Claude Code 签名验证部分（权重 40%）
+    if (ccVerify.length > 0) {
+      const s = ccVerify[0];
+      let ccScore: number;
+      if (!s.ok) {
+        // 请求失败 — 中转站可能不支持 Claude Code headers
+        ccScore = 50;
+        explanations.push('Claude Code 签名验证：请求失败（中转站可能不支持）');
+      } else {
+        const content = (s.content ?? '').toLowerCase();
+        const provenance = s.provenance;
+        // 检查响应是否来自 Anthropic（id 前缀 msg_）
+        const isAnthropicId = provenance?.idPrefix === 'msg_';
+        // 检查模型是否正常回答身份（Claude 应能回答）
+        const claimsClaudeInContent = /claude/i.test(content) && /anthropic/i.test(content);
+        // 检查是否出现拒绝访问模式
+        const denied = /cannot discuss|can'?t provide|unable to comply|access denied|not authorized/i.test(content) || /无法执行|没有权限|不在我的能力范围/i.test(content);
+
+        if (isAnthropicId && claimsClaudeInContent) {
+          ccScore = 100;
+          explanations.push('Claude Code 签名验证：响应 id 前缀 msg_，自述 Claude/Anthropic，验证通过');
+        } else if (claimsClaudeInContent) {
+          ccScore = 80;
+          explanations.push('Claude Code 签名验证：自述 Claude/Anthropic 但元数据不完全匹配');
+        } else if (denied) {
+          ccScore = 40;
+          explanations.push('Claude Code 签名验证：收到访问拒绝，可能为非 Anthropic 后端');
+        } else {
+          ccScore = 55;
+          explanations.push('Claude Code 签名验证：未能确认 Anthropic 来源');
+        }
+      }
+      totalScore += ccScore * 0.4;
+      totalWeight += 0.4;
     }
+
+    const score = totalWeight > 0 ? Math.round(totalScore / totalWeight) : 0;
     return {
       dimension: 'signature_fingerprint',
       verdict: scoreToVerdict(score, true),
       score,
-      explanation,
+      explanation: explanations.join('。') + '。',
     };
   },
 };
@@ -433,11 +475,11 @@ export const computationProbe: DimensionProbe = {
   },
 };
 
-/** 9. 指令遵循：验证模型对复杂约束的遵循能力 */
+/** 9. 指令遵循：验证模型对复杂约束的遵循能力（含 JSON Schema 结构化输出） */
 export const instructionProbe: DimensionProbe = {
   dimension: 'instruction_following',
   evaluate(samples) {
-    const relevant = samples.filter((s) => s.purpose === 'instruction' && !s.timedOut && s.ok);
+    const relevant = samples.filter((s) => (s.purpose === 'instruction' || s.purpose === 'structured_output') && !s.timedOut && s.ok);
     if (relevant.length === 0) {
       return { dimension: 'instruction_following', verdict: 'inconclusive', score: 0, explanation: '无有效指令遵循采样。' };
     }
@@ -445,43 +487,58 @@ export const instructionProbe: DimensionProbe = {
     const notes: string[] = [];
     for (const s of relevant) {
       const validatorId = s.meta?.validator as string | undefined;
+      const isJsonSchema = s.meta?.isJsonSchema as boolean | undefined;
       const content = (s.content ?? '').trim();
       let ok = false;
-      switch (validatorId) {
-        case 'exact_ok':
-          ok = /^\s*OK\s*$/i.test(content);
-          if (!ok) notes.push('未精确回复 OK');
-          break;
-        case 'chinese_comma':
-          ok = content === '，' || content === '"，"' || content === '「，」';
-          if (!ok) notes.push('未精确输出中文逗号');
-          break;
-        case 'constrained_poem': {
-          // 宽松验证：检查是否有空格分词 + 包含"夕阳" + 不含"的""了"
-          const words = content.split(/\s+/).filter(Boolean);
-          const hasFiveWords = words.length === 5;
-          const hasSunset = content.includes('夕阳');
-          const noForbidden = !content.includes('的') && !content.includes('了');
-          ok = hasFiveWords && hasSunset && noForbidden;
-          if (!ok) notes.push('约束诗句未满足全部条件');
-          break;
+
+      if (isJsonSchema) {
+        // JSON Schema 结构化输出验证
+        const expected = s.meta?.expectedAnswer as number | undefined;
+        try {
+          const parsed = JSON.parse(content);
+          ok = typeof parsed === 'object' && parsed !== null &&
+            'expression' in parsed && 'result' in parsed &&
+            typeof parsed.result === 'number' &&
+            (expected === undefined || parsed.result === expected);
+        } catch {
+          ok = false;
         }
-        case 'json_format': {
-          // 验证 JSON 格式 + 计算结果
-          const expected = s.meta?.expectedAnswer as number | undefined;
-          try {
-            const parsed = JSON.parse(content);
-            ok = typeof parsed === 'object' && parsed !== null &&
-              'expression' in parsed && 'result' in parsed &&
-              (expected === undefined || parsed.result === expected);
-          } catch {
-            ok = false;
+        if (!ok) notes.push('JSON Schema 结构化输出验证失败');
+      } else {
+        switch (validatorId) {
+          case 'exact_ok':
+            ok = /^\s*OK\s*$/i.test(content);
+            if (!ok) notes.push('未精确回复 OK');
+            break;
+          case 'chinese_comma':
+            ok = content === '，' || content === '"，"' || content === '「，」';
+            if (!ok) notes.push('未精确输出中文逗号');
+            break;
+          case 'constrained_poem': {
+            const words = content.split(/\s+/).filter(Boolean);
+            const hasFiveWords = words.length === 5;
+            const hasSunset = content.includes('夕阳');
+            const noForbidden = !content.includes('的') && !content.includes('了');
+            ok = hasFiveWords && hasSunset && noForbidden;
+            if (!ok) notes.push('约束诗句未满足全部条件');
+            break;
           }
-          if (!ok) notes.push('未返回正确 JSON 格式或计算结果有误');
-          break;
+          case 'json_format': {
+            const expected = s.meta?.expectedAnswer as number | undefined;
+            try {
+              const parsed = JSON.parse(content);
+              ok = typeof parsed === 'object' && parsed !== null &&
+                'expression' in parsed && 'result' in parsed &&
+                (expected === undefined || parsed.result === expected);
+            } catch {
+              ok = false;
+            }
+            if (!ok) notes.push('未返回正确 JSON 格式或计算结果有误');
+            break;
+          }
+          default:
+            ok = content.length > 0;
         }
-        default:
-          ok = content.length > 0; // fallback
       }
       if (ok) pass++;
     }

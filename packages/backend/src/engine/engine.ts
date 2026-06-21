@@ -12,8 +12,12 @@ import {
   INJECTION_PROMPTS,
   INJECTION_LEAK_PATTERNS,
   TRAP_QUESTIONS,
+  CLAUDE_CODE_HEADERS,
+  CLAUDE_CODE_SYSTEM_PROMPT,
+  CLAUDE_CODE_VERIFY_PROMPT,
   generateComputationQuestion,
   generateJsonComputationQuestion,
+  generateJsonSchemaTest,
   getModelProfile,
 } from './profiles.js';
 import type { ProbeContext, RelaySample } from './types.js';
@@ -149,6 +153,34 @@ export async function runDetection(input: RunInput): Promise<DetectionResult> {
         purpose: 'injection',
         messages: [{ role: 'user', content: prompt }],
         meta: { leakPatterns: INJECTION_LEAK_PATTERNS },
+      }),
+    });
+  }
+
+  // Claude Code 签名验证：模拟 Claude Code 客户端请求，检测中转站是否真正转发到 Anthropic
+  plan.push({
+    dimension: 'signature_fingerprint',
+    sample: () => callRelay({
+      ...baseSample,
+      purpose: 'claude_code_verify',
+      extraHeaders: CLAUDE_CODE_HEADERS,
+      systemPrompt: CLAUDE_CODE_SYSTEM_PROMPT,
+      messages: [{ role: 'user', content: CLAUDE_CODE_VERIFY_PROMPT }],
+      meta: { isClaudeCodeVerify: true },
+    }),
+  });
+
+  // JSON Schema 结构化输出：使用 response_format 参数测试
+  for (let i = 0; i < 2; i++) {
+    const test = generateJsonSchemaTest();
+    plan.push({
+      dimension: 'instruction_following',
+      sample: () => callRelay({
+        ...baseSample,
+        purpose: 'structured_output',
+        messages: [{ role: 'user', content: test.prompt }],
+        responseFormat: test.schema,
+        meta: { expectedAnswer: test.expectedAnswer, expression: test.expression, isJsonSchema: true },
       }),
     });
   }
