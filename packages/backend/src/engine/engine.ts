@@ -8,6 +8,16 @@ import {
   IDENTITY_QUESTIONS,
   KNOWLEDGE_QUESTIONS,
   REASONING_QUESTIONS,
+  INSTRUCTION_QUESTIONS,
+  INJECTION_PROMPTS,
+  INJECTION_LEAK_PATTERNS,
+  TRAP_QUESTIONS,
+  CLAUDE_CODE_HEADERS,
+  CLAUDE_CODE_SYSTEM_PROMPT,
+  CLAUDE_CODE_VERIFY_PROMPT,
+  generateComputationQuestion,
+  generateJsonComputationQuestion,
+  generateJsonSchemaTest,
   getModelProfile,
 } from './profiles.js';
 import type { ProbeContext, RelaySample } from './types.js';
@@ -27,6 +37,10 @@ const DIMENSION_ORDER: Dimension[] = [
   'reasoning_trace',
   'signature_fingerprint',
   'provenance_fingerprint',
+  'dynamic_computation',
+  'instruction_following',
+  'injection_resistance',
+  'trap_detection',
 ];
 
 /**
@@ -48,7 +62,128 @@ export async function runDetection(input: RunInput): Promise<DetectionResult> {
   };
 
   // 探测计划：为每个维度生成若干轮采样
+  // 优先级排序：高权重/强信号维度放前面，避免限速导致重要维度无数据
   const plan: Array<{ dimension: Dimension; sample: () => Promise<RelaySample> }> = [];
+
+  // [最高优先] 陷阱题：虚构未来事件，正品应拒绝回答
+  for (let i = 0; i < TRAP_QUESTIONS.length; i++) {
+    const q = TRAP_QUESTIONS[i];
+    plan.push({
+      dimension: 'trap_detection',
+      sample: () => callRelay({
+        ...baseSample,
+        purpose: 'trap',
+        messages: [{ role: 'user', content: q.prompt }],
+        meta: {
+          trapId: q.id,
+          suspiciousPatterns: q.suspiciousPatterns.map((p: RegExp) => p.source),
+          refusalPatterns: q.refusalPatterns.map((p: RegExp) => p.source),
+        },
+      }),
+    });
+  }
+
+  // [高优先] 动态计算：随机数学题（每次不同，不可缓存）
+  for (let i = 0; i < rounds; i++) {
+    const q = i % 2 === 0 ? generateComputationQuestion() : generateJsonComputationQuestion();
+    const isJson = i % 2 === 1;
+    plan.push({
+      dimension: 'dynamic_computation',
+      sample: () => callRelay({
+        ...baseSample,
+        purpose: 'computation',
+        messages: [{ role: 'user', content: q.prompt }],
+        meta: { expectedAnswer: q.expectedAnswer, expression: q.expression, isJson },
+      }),
+    });
+  }
+
+  // [高优先] 身份一致性
+  for (let i = 0; i < rounds; i++) {
+    const q = IDENTITY_QUESTIONS[i % IDENTITY_QUESTIONS.length];
+    plan.push({
+      dimension: 'identity_consistency',
+      sample: () => callRelay({ ...baseSample, purpose: 'identity', messages: [{ role: 'user', content: q }] }),
+    });
+  }
+
+  // 知识问答（轮转题库）
+  for (let i = 0; i < rounds; i++) {
+    const q = KNOWLEDGE_QUESTIONS[i % KNOWLEDGE_QUESTIONS.length];
+    plan.push({
+      dimension: 'knowledge_qa',
+      sample: () => callRelay({ ...baseSample, purpose: 'knowledge', messages: [{ role: 'user', content: q.prompt }], meta: { expectedKeywords: q.expectedKeywords } }),
+    });
+  }
+
+  // 指令遵循：多种约束类型
+  for (let i = 0; i < Math.min(rounds, INSTRUCTION_QUESTIONS.length + 1); i++) {
+    if (i < INSTRUCTION_QUESTIONS.length) {
+      const q = INSTRUCTION_QUESTIONS[i];
+      plan.push({
+        dimension: 'instruction_following',
+        sample: () => callRelay({
+          ...baseSample,
+          purpose: 'instruction',
+          messages: [{ role: 'user', content: q.prompt }],
+          meta: { validator: q.validator },
+        }),
+      });
+    } else {
+      const q = generateJsonComputationQuestion();
+      plan.push({
+        dimension: 'instruction_following',
+        sample: () => callRelay({
+          ...baseSample,
+          purpose: 'instruction',
+          messages: [{ role: 'user', content: q.prompt }],
+          meta: { validator: 'json_format', expectedAnswer: q.expectedAnswer },
+        }),
+      });
+    }
+  }
+
+  // 注入抗性：prompt injection 攻击
+  for (let i = 0; i < Math.min(rounds, INJECTION_PROMPTS.length); i++) {
+    const prompt = INJECTION_PROMPTS[i % INJECTION_PROMPTS.length];
+    plan.push({
+      dimension: 'injection_resistance',
+      sample: () => callRelay({
+        ...baseSample,
+        purpose: 'injection',
+        messages: [{ role: 'user', content: prompt }],
+        meta: { leakPatterns: INJECTION_LEAK_PATTERNS },
+      }),
+    });
+  }
+
+  // Claude Code 签名验证：模拟 Claude Code 客户端请求，检测中转站是否真正转发到 Anthropic
+  plan.push({
+    dimension: 'signature_fingerprint',
+    sample: () => callRelay({
+      ...baseSample,
+      purpose: 'claude_code_verify',
+      extraHeaders: CLAUDE_CODE_HEADERS,
+      systemPrompt: CLAUDE_CODE_SYSTEM_PROMPT,
+      messages: [{ role: 'user', content: CLAUDE_CODE_VERIFY_PROMPT }],
+      meta: { isClaudeCodeVerify: true },
+    }),
+  });
+
+  // JSON Schema 结构化输出：使用 response_format 参数测试
+  for (let i = 0; i < 2; i++) {
+    const test = generateJsonSchemaTest();
+    plan.push({
+      dimension: 'instruction_following',
+      sample: () => callRelay({
+        ...baseSample,
+        purpose: 'structured_output',
+        messages: [{ role: 'user', content: test.prompt }],
+        responseFormat: test.schema,
+        meta: { expectedAnswer: test.expectedAnswer, expression: test.expression, isJsonSchema: true },
+      }),
+    });
+  }
 
   // 协议一致性：流式 + 非流式各若干轮
   for (let i = 0; i < rounds; i++) {
@@ -58,6 +193,7 @@ export async function runDetection(input: RunInput): Promise<DetectionResult> {
       sample: () => callRelay({ ...baseSample, purpose: 'protocol', stream, messages: [{ role: 'user', content: '用一句话介绍你自己。' }] }),
     });
   }
+
   // 响应结构
   for (let i = 0; i < rounds; i++) {
     plan.push({
@@ -65,22 +201,7 @@ export async function runDetection(input: RunInput): Promise<DetectionResult> {
       sample: () => callRelay({ ...baseSample, purpose: 'structure', messages: [{ role: 'user', content: '请回答：1+1=?' }] }),
     });
   }
-  // 知识问答（轮转题库）
-  for (let i = 0; i < rounds; i++) {
-    const q = KNOWLEDGE_QUESTIONS[i % KNOWLEDGE_QUESTIONS.length];
-    plan.push({
-      dimension: 'knowledge_qa',
-      sample: () => callRelay({ ...baseSample, purpose: 'knowledge', messages: [{ role: 'user', content: q.prompt }], meta: { expectedKeywords: q.expectedKeywords } }),
-    });
-  }
-  // 身份一致性
-  for (let i = 0; i < rounds; i++) {
-    const q = IDENTITY_QUESTIONS[i % IDENTITY_QUESTIONS.length];
-    plan.push({
-      dimension: 'identity_consistency',
-      sample: () => callRelay({ ...baseSample, purpose: 'identity', messages: [{ role: 'user', content: q }] }),
-    });
-  }
+
   // 思维链
   for (let i = 0; i < rounds; i++) {
     const q = REASONING_QUESTIONS[i % REASONING_QUESTIONS.length];
@@ -89,6 +210,7 @@ export async function runDetection(input: RunInput): Promise<DetectionResult> {
       sample: () => callRelay({ ...baseSample, purpose: 'reasoning', messages: [{ role: 'user', content: q }] }),
     });
   }
+
   // 签名指纹：固定 prompt 多次采样
   for (let i = 0; i < rounds; i++) {
     plan.push({

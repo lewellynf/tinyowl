@@ -1,0 +1,36 @@
+# tinyowl 生产编排
+# backend: Fastify API（内部 3000，不对外暴露端口，仅经 nginx 反代）
+# web: nginx 托管前端 + 反代 /api + HTTPS
+services:
+  backend:
+    image: tinyowl-backend:latest
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      HOST: 0.0.0.0
+      DB_PATH: /app/data/tinyowl.sqlite
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?须在 .env 中设置 ADMIN_PASSWORD}
+      ADMIN_TOKEN_SECRET: ${ADMIN_TOKEN_SECRET:?须在 .env 中设置 ADMIN_TOKEN_SECRET}
+      PROBE_ROUNDS: ${PROBE_ROUNDS:-5}
+      ROUND_TIMEOUT_MS: ${ROUND_TIMEOUT_MS:-60000}
+    volumes:
+      - tinyowl-data:/app/data
+    expose:
+      - "3000"
+
+  web:
+    image: tinyowl-web:latest
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # 证书挂载自宿主机（只读）
+      - /etc/nginx/certs:/etc/nginx/certs:ro
+
+volumes:
+  tinyowl-data:

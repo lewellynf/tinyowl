@@ -1,0 +1,11 @@
+node_modules
+**/node_modules
+packages/*/dist
+packages/data
+**/*.sqlite*
+.git
+.kiro
+docs
+*.log
+.DS_Store
+deploy/.env

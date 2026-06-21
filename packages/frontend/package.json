@@ -11,6 +11,9 @@
   },
   "dependencies": {
     "@ant-design/icons": "^5.5.1",
+    "@fontsource/baloo-2": "^5.2.7",
+    "@fontsource/geist-mono": "^5.2.8",
+    "@fontsource/nunito": "^5.2.7",
     "@tinyowl/shared": "workspace:*",
     "antd": "^5.21.6",
     "axios": "^1.7.7",

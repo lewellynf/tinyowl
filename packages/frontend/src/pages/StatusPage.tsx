@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Card, Col, Row, Tag, Typography, Spin } from 'antd';
+import { Card, Col, Row, Tag, Typography, Spin, Tooltip } from 'antd';
 import {
   OFFICIAL_STATUS_LABELS,
   type OfficialStatus,
@@ -18,6 +18,11 @@ const PROVIDER_LABELS: Record<string, string> = {
 function statusColor(s: OfficialStatusValue) {
   return s === 'normal' ? 'green' : s === 'abnormal' ? 'red' : 'default';
 }
+
+// “未知”并非官方异常，而是本服务无法探测到该状态页（多为网络不可达）
+const STATUS_HINT: Partial<Record<OfficialStatusValue, string>> = {
+  unknown: '“未知”表示本服务暂时无法探测该官方状态页（通常是网络不可达），并不代表官方 API 出现故障。',
+};
 
 export default function StatusPage() {
   const [data, setData] = useState<OfficialStatus[]>([]);
@@ -48,9 +53,12 @@ export default function StatusPage() {
                   <Title level={4} style={{ marginTop: 0 }}>
                     {PROVIDER_LABELS[s.provider] ?? s.provider}
                   </Title>
-                  <Tag color={statusColor(s.status)} style={{ fontSize: 14, padding: '2px 10px' }}>
-                    {OFFICIAL_STATUS_LABELS[s.status]}
-                  </Tag>
+                  <Tooltip title={STATUS_HINT[s.status]}>
+                    <Tag color={statusColor(s.status)} style={{ fontSize: 14, padding: '2px 10px' }}>
+                      {OFFICIAL_STATUS_LABELS[s.status]}
+                      {s.status === 'unknown' ? ' ⓘ' : ''}
+                    </Tag>
+                  </Tooltip>
                   <div style={{ marginTop: 12 }}>
                     <Text type="secondary" style={{ fontSize: 12 }}>
                       {s.detail}

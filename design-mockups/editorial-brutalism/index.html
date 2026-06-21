@@ -1,0 +1,1081 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TINY OWL — AUDITING THE MIDDLEMEN.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800;900&family=Geist+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   EDITORIAL BRUTALISM · tinyowl 首页
+   参考: Bloomberg Businessweek (Richard Turley 2010-2014),
+        Neue Haas Grotesk 谱系
+   visual DNA: 纯黑#000 + 纯白#FFF + 信号橙红#FF433D,
+              超大 headline 压小正文, 1px 规则线分栏,
+              高信息密度, 刻意不留白, 零圆角零阴影
+   ============================================================ */
+
+:root {
+  --bg: #000000;
+  --fg: #FFFFFF;
+  --accent: #FF433E;          /* signal red — 设计 DNA 指定的信号橙红 */
+  --link: #FF433E;             /* 暗底里 #0000EE 不可视, accent 替代 */
+  --rule: #FFFFFF;             /* 规则线 */
+  --rule-dim: rgba(255,255,255,0.25);
+  --muted: rgba(255,255,255,0.55);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 1.35;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "ss01", "cv01";
+}
+
+body { overflow-x: hidden; }
+
+a {
+  color: var(--link);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+a:hover { background: var(--accent); color: var(--bg); text-decoration: none; }
+
+/* tabular 数字（Bloomberg 的灵魂） */
+.num, code, .mono {
+  font-family: 'Geist Mono', 'IBM Plex Mono', 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "zero" 1;
+}
+
+/* ============================================================
+   01 · 顶部 MASTHEAD（报纸刊头风）
+   ============================================================ */
+.masthead {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 24px;
+  border-bottom: 1px solid var(--rule);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.masthead .brand {
+  display: flex; align-items: center; gap: 8px;
+  font-weight: 800;
+}
+.masthead .brand svg { width: 18px; height: 18px; }
+.masthead nav { display: flex; gap: 20px; justify-self: end; }
+.masthead nav a {
+  color: var(--fg);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  padding-bottom: 2px;
+}
+.masthead nav a:hover { border-bottom-color: var(--accent); color: var(--accent); background: transparent; }
+.masthead .meta { color: var(--muted); justify-self: end; }
+.masthead .cta {
+  background: var(--accent);
+  color: var(--bg);
+  font-weight: 800;
+  padding: 6px 12px;
+  text-decoration: none;
+}
+.masthead .cta:hover { background: var(--fg); color: var(--bg); }
+
+/* ============================================================
+   02 · HERO · 巨号 headline + 规则线分栏
+   ============================================================ */
+.hero {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  border-bottom: 1px solid var(--rule);
+}
+.hero-main {
+  padding: 32px 24px 28px;
+  border-right: 1px solid var(--rule);
+  position: relative;
+}
+.hero-kicker {
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  margin-bottom: 18px;
+  display: flex;
+  gap: 14px;
+  align-items: baseline;
+}
+.hero-kicker .dot { color: var(--accent); }
+.hero-headline {
+  font-weight: 900;
+  font-size: clamp(72px, 14vw, 200px);
+  line-height: 0.86;
+  letter-spacing: -0.045em;
+  text-transform: uppercase;
+  font-stretch: condensed;
+  margin-bottom: 24px;
+}
+.hero-headline .accent { color: var(--accent); }
+.hero-sub {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 24px;
+  border-top: 1px solid var(--rule);
+  padding-top: 20px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.hero-sub strong { font-weight: 800; }
+.hero-aside {
+  padding: 32px 24px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  font-size: 12px;
+}
+.hero-aside .label {
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+.hero-aside .stat {
+  border-bottom: 1px solid var(--rule-dim);
+  padding: 14px 0 12px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+}
+.hero-aside .stat:first-of-type { padding-top: 0; }
+.hero-aside .stat .v {
+  font-size: 28px; font-weight: 800; letter-spacing: -0.03em;
+}
+.hero-aside .stat .v.accent { color: var(--accent); }
+.hero-aside .stat .k {
+  font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* ============================================================
+   03 · 检测表单（Editorial 中的「订阅卡」位置）
+   ============================================================ */
+.detect {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-bottom: 1px solid var(--rule);
+}
+.detect-form {
+  padding: 36px 24px;
+  border-right: 1px solid var(--rule);
+}
+.detect-form .section-num {
+  font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--accent); font-weight: 700; margin-bottom: 8px;
+}
+.detect-form h2 {
+  font-size: clamp(36px, 5vw, 56px);
+  font-weight: 900;
+  line-height: 0.95;
+  letter-spacing: -0.035em;
+  text-transform: uppercase;
+  margin-bottom: 24px;
+}
+.field {
+  border-top: 1px solid var(--rule-dim);
+  padding: 14px 0 10px;
+}
+.field:last-of-type { border-bottom: 1px solid var(--rule-dim); margin-bottom: 20px; }
+.field label {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+.field input, .field select {
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: var(--fg);
+  font-family: 'Geist Mono', monospace;
+  font-size: 16px;
+  padding: 0;
+  outline: none;
+  font-feature-settings: "tnum" 1;
+}
+.field input::placeholder { color: var(--muted); }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+
+.run-btn {
+  width: 100%;
+  background: var(--accent);
+  color: var(--bg);
+  border: none;
+  padding: 22px;
+  font-family: inherit;
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.run-btn:hover { background: var(--fg); color: var(--bg); }
+.run-btn .arr { font-family: 'Geist Mono', monospace; }
+
+.detect-side {
+  padding: 36px 24px;
+  display: flex;
+  flex-direction: column;
+}
+.detect-side .label {
+  font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 14px;
+}
+.dims {
+  border-top: 1px solid var(--rule);
+  flex: 1;
+}
+.dim {
+  display: grid;
+  grid-template-columns: 36px 1fr 60px;
+  gap: 12px;
+  padding: 14px 0 12px;
+  border-bottom: 1px solid var(--rule-dim);
+  align-items: baseline;
+}
+.dim .n {
+  font-family: 'Geist Mono', monospace;
+  font-size: 11px; color: var(--muted);
+  letter-spacing: 0.06em;
+}
+.dim .name {
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+.dim .name small {
+  display: block;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--muted);
+  margin-top: 3px;
+  letter-spacing: 0;
+}
+.dim .w {
+  font-family: 'Geist Mono', monospace;
+  font-size: 11px;
+  text-align: right;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.dim.highlight .name { color: var(--accent); }
+.dim.highlight .w { color: var(--accent); }
+.dims-footer {
+  font-size: 11px;
+  color: var(--muted);
+  padding-top: 14px;
+  line-height: 1.5;
+}
+
+/* ============================================================
+   04 · 模型榜单 · 1px 规则线分隔
+   ============================================================ */
+.leaderboard { border-bottom: 1px solid var(--rule); }
+.lb-head {
+  padding: 36px 24px 18px;
+  border-bottom: 1px solid var(--rule);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 24px;
+}
+.lb-head .title-block .num { color: var(--accent); font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; font-weight: 700; }
+.lb-head h2 {
+  font-size: clamp(40px, 6vw, 80px);
+  font-weight: 900;
+  line-height: 0.9;
+  letter-spacing: -0.04em;
+  text-transform: uppercase;
+  margin-top: 6px;
+}
+.lb-tabs { display: flex; gap: 0; align-items: flex-end; }
+.lb-tabs a {
+  font-family: 'Geist Mono', monospace;
+  font-size: 12px;
+  padding: 8px 14px;
+  border: 1px solid var(--rule);
+  color: var(--fg);
+  text-decoration: none;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.lb-tabs a + a { border-left: none; }
+.lb-tabs a.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+.lb-tabs a:hover { background: var(--fg); color: var(--bg); }
+.lb-tabs a.active:hover { background: var(--accent); color: var(--bg); }
+
+.lb-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.lb-table thead th {
+  text-align: left;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--rule);
+  font-weight: 500;
+}
+.lb-table thead th.r { text-align: right; }
+.lb-table tbody td {
+  padding: 18px 16px;
+  border-bottom: 1px solid var(--rule-dim);
+  vertical-align: baseline;
+}
+.lb-table tbody tr:hover { background: rgba(255, 67, 62, 0.06); }
+.lb-table .rank {
+  font-family: 'Geist Mono', monospace;
+  font-size: 14px;
+  color: var(--muted);
+  width: 40px;
+}
+.lb-table .name { font-size: 20px; font-weight: 800; letter-spacing: -0.015em; }
+.lb-table .name small {
+  display: block; font-size: 11px; font-weight: 400; color: var(--muted);
+  letter-spacing: 0.04em; text-transform: uppercase; margin-top: 4px;
+}
+.lb-table td.r { text-align: right; font-family: 'Geist Mono', monospace; font-size: 16px; }
+.lb-table .delta { font-size: 11px; color: var(--muted); display: block; margin-top: 3px; }
+.lb-table .delta.up { color: var(--accent); }
+.lb-table .delta.down { color: #00CC66; } /* 价格下降 = 好事 = 绿 */
+.lb-table .cert {
+  display: inline-block; padding: 3px 8px;
+  font-family: 'Geist Mono', monospace; font-size: 10px;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  border: 1px solid currentColor;
+}
+.lb-table .cert.ent { color: var(--accent); border-color: var(--accent); }
+.lb-table .cert.per { color: var(--fg); }
+.lb-table .cert.none { color: var(--muted); border-style: dashed; }
+.lb-table .dg-warn { color: var(--accent); font-weight: 700; }
+.lb-table .dg-suspect { color: var(--accent); font-weight: 700; text-transform: uppercase; font-size: 11px; letter-spacing: 0.1em; }
+.lb-table .dg-ok { color: var(--muted); font-size: 13px; }
+
+.lb-footer {
+  padding: 18px 24px;
+  border-top: 1px solid var(--rule);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.lb-footer a { color: var(--accent); }
+
+/* ============================================================
+   05 · 检测原理（七维度）+ 官方状态
+   ============================================================ */
+.split {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  border-bottom: 1px solid var(--rule);
+}
+.principle {
+  padding: 36px 24px;
+  border-right: 1px solid var(--rule);
+}
+.principle .num { color: var(--accent); font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; font-weight: 700; }
+.principle h2 {
+  font-size: clamp(40px, 6vw, 72px);
+  font-weight: 900;
+  line-height: 0.92;
+  letter-spacing: -0.04em;
+  text-transform: uppercase;
+  margin: 8px 0 24px;
+}
+.principle .lead {
+  font-size: 16px;
+  line-height: 1.55;
+  max-width: 720px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--rule);
+}
+.principle .lead strong { font-weight: 800; }
+.flow {
+  display: grid;
+  grid-template-columns: 1fr 24px 1fr 24px 1fr;
+  gap: 0;
+  align-items: stretch;
+  margin: 24px 0;
+}
+.flow .stage {
+  border: 1px solid var(--rule);
+  padding: 18px 16px;
+}
+.flow .stage .k {
+  font-family: 'Geist Mono', monospace;
+  font-size: 11px;
+  color: var(--accent);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.flow .stage h4 { font-size: 20px; font-weight: 800; letter-spacing: -0.01em; margin-bottom: 6px; }
+.flow .stage p { font-size: 12px; color: var(--muted); line-height: 1.5; }
+.flow .arr {
+  font-family: 'Geist Mono', monospace;
+  font-size: 24px;
+  font-weight: 700;
+  align-self: center;
+  text-align: center;
+  color: var(--accent);
+}
+
+.status {
+  padding: 36px 24px;
+  display: flex;
+  flex-direction: column;
+}
+.status .num { color: var(--accent); font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; font-weight: 700; }
+.status h3 {
+  font-size: 32px;
+  font-weight: 900;
+  line-height: 0.95;
+  letter-spacing: -0.03em;
+  text-transform: uppercase;
+  margin: 6px 0 24px;
+}
+.status-row {
+  border-top: 1px solid var(--rule);
+  padding: 18px 0 14px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+}
+.status-row:last-of-type { border-bottom: 1px solid var(--rule); }
+.status-row .who { font-size: 18px; font-weight: 800; letter-spacing: -0.01em; }
+.status-row .who small {
+  display: block; font-size: 10px; font-weight: 400; color: var(--muted);
+  letter-spacing: 0.14em; text-transform: uppercase; margin-top: 3px;
+}
+.status-row .tag {
+  font-family: 'Geist Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border: 1px solid currentColor;
+}
+.status-row .tag.normal { color: #00CC66; }
+.status-row .tag.unknown { color: var(--muted); border-style: dashed; }
+.status-row .tag.abnormal { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+.status-foot {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 20px;
+  line-height: 1.55;
+  padding-top: 16px;
+  border-top: 1px solid var(--rule-dim);
+}
+
+/* ============================================================
+   06 · FAQ + Footer Manifesto
+   ============================================================ */
+.manifesto {
+  padding: 56px 24px 40px;
+  border-bottom: 1px solid var(--rule);
+  border-top: 1px solid var(--rule);
+}
+.manifesto .num { color: var(--accent); font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; font-weight: 700; }
+.manifesto blockquote {
+  font-size: clamp(36px, 6.5vw, 88px);
+  font-weight: 900;
+  line-height: 0.96;
+  letter-spacing: -0.045em;
+  text-transform: uppercase;
+  margin: 16px 0 24px;
+  max-width: 16ch;
+}
+.manifesto blockquote em { color: var(--accent); font-style: normal; }
+.manifesto .sig {
+  font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted);
+  border-top: 1px solid var(--rule-dim);
+  padding-top: 14px;
+  display: flex; gap: 16px;
+}
+
+.faq {
+  border-bottom: 1px solid var(--rule);
+  display: grid;
+  grid-template-columns: 280px 1fr;
+}
+.faq-head {
+  padding: 36px 24px;
+  border-right: 1px solid var(--rule);
+}
+.faq-head .num { color: var(--accent); font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; font-weight: 700; }
+.faq-head h2 {
+  font-size: 40px;
+  font-weight: 900;
+  line-height: 0.92;
+  letter-spacing: -0.035em;
+  text-transform: uppercase;
+  margin-top: 6px;
+}
+.faq-list { padding: 12px 0; }
+.faq-item {
+  border-bottom: 1px solid var(--rule-dim);
+  padding: 22px 24px;
+  display: grid;
+  grid-template-columns: 40px 1fr;
+  gap: 16px;
+}
+.faq-item:last-child { border-bottom: none; }
+.faq-item .q-n {
+  font-family: 'Geist Mono', monospace;
+  font-size: 11px; color: var(--accent); letter-spacing: 0.06em;
+}
+.faq-item h4 {
+  font-size: 18px; font-weight: 800; letter-spacing: -0.012em;
+  margin-bottom: 8px;
+}
+.faq-item p { font-size: 13px; line-height: 1.6; color: rgba(255,255,255,0.78); max-width: 60ch; }
+.faq-item p a { color: var(--accent); }
+
+.colophon {
+  padding: 32px 24px 28px;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 24px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.colophon .label {
+  color: var(--muted);
+  margin-bottom: 10px;
+  letter-spacing: 0.18em;
+}
+.colophon a {
+  display: block;
+  color: var(--fg);
+  text-decoration: none;
+  padding: 3px 0;
+}
+.colophon a:hover { color: var(--accent); background: transparent; }
+.colophon .brand-end {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.legal {
+  padding: 14px 24px;
+  border-top: 1px solid var(--rule);
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* ============================================================
+   响应式（克制：Brutalism 在窄屏不卖萌）
+   ============================================================ */
+@media (max-width: 1024px) {
+  .hero { grid-template-columns: 1fr; }
+  .hero-main { border-right: none; border-bottom: 1px solid var(--rule); }
+  .detect, .split, .faq { grid-template-columns: 1fr; }
+  .detect-form, .principle, .faq-head { border-right: none; border-bottom: 1px solid var(--rule); }
+  .lb-head { grid-template-columns: 1fr; }
+  .lb-tabs { flex-wrap: wrap; }
+  .flow { grid-template-columns: 1fr; gap: 8px; }
+  .flow .arr { transform: rotate(90deg); padding: 4px 0; }
+  .colophon { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 640px) {
+  .hero-sub { grid-template-columns: 1fr; }
+  .hero-main { padding: 24px 16px; }
+  .field-row { grid-template-columns: 1fr; gap: 0; }
+  .lb-table thead { display: none; }
+  .lb-table, .lb-table tbody, .lb-table tr, .lb-table td { display: block; width: 100%; }
+  .lb-table tbody tr { padding: 16px 16px; border-bottom: 1px solid var(--rule); }
+  .lb-table tbody td { padding: 4px 0; border: none; text-align: left !important; }
+  .lb-table .rank { font-size: 12px; margin-bottom: 4px; }
+  .colophon { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- =============================================================
+     01 · MASTHEAD
+     ============================================================= -->
+<header class="masthead">
+  <div class="brand">
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <!-- 占位猫头鹰几何(线上用真 owl.svg)：纯黑白几何不画形象 -->
+      <rect x="2" y="2" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"/>
+      <circle cx="8" cy="10" r="2.5" fill="currentColor"/>
+      <circle cx="16" cy="10" r="2.5" fill="currentColor"/>
+      <rect x="10" y="16" width="4" height="2" fill="currentColor"/>
+    </svg>
+    TINY OWL <span style="color:var(--muted);font-weight:400;margin-left:6px;">猫头鹰评测</span>
+  </div>
+  <div></div>
+  <nav>
+    <a href="#detect">首页检测</a>
+    <a href="#leaderboard">模型榜单</a>
+    <a href="#status">官方状态</a>
+    <a href="#faq">常见问题</a>
+  </nav>
+  <a href="#detect" class="cta">立即检测 →</a>
+</header>
+
+<!-- =============================================================
+     02 · HERO
+     ============================================================= -->
+<section class="hero">
+  <div class="hero-main">
+    <div class="hero-kicker">
+      <span class="dot">●</span>
+      <span>VOL.01 · ISSUE 06 · 2026</span>
+      <span style="color:var(--muted);">独立 · 技术性 · 公开方法</span>
+    </div>
+    <h1 class="hero-headline">
+      AUDITING<br />
+      THE <em class="accent">MIDDLEMEN</em>.
+    </h1>
+    <div class="hero-sub">
+      <div>
+        <strong>对 API 中转站做七维度技术性验证。</strong>
+        识别「模型身份替换」「降智」「协议不一致」等风险。
+      </div>
+      <div>
+        七维体系中，<strong>协议来源指纹</strong>是最难伪造、权重最高的维度，
+        可识破「行为层伪装到位、底层来源不符」的高仿替换。
+      </div>
+      <div style="color:var(--muted);">
+        这是低成本技术性验证，<strong style="color:var(--fg);">不是法律审计</strong>，
+        不保证 100% 准确。
+      </div>
+    </div>
+  </div>
+  <aside class="hero-aside">
+    <div class="label">实时统计 · LIVE</div>
+    <div class="stat">
+      <div>
+        <div class="v num accent">07</div>
+        <div class="k">检测维度</div>
+      </div>
+    </div>
+    <div class="stat">
+      <div>
+        <div class="v num">04</div>
+        <div class="k">覆盖模型</div>
+      </div>
+    </div>
+    <div class="stat">
+      <div>
+        <div class="v num">12</div>
+        <div class="k">在榜渠道</div>
+      </div>
+    </div>
+    <div class="stat" style="border-bottom:none;">
+      <div>
+        <div class="v num">100</div>
+        <div class="k">满分总分</div>
+      </div>
+    </div>
+  </aside>
+</section>
+
+<!-- =============================================================
+     03 · 检测表单
+     ============================================================= -->
+<section class="detect" id="detect">
+  <div class="detect-form">
+    <div class="section-num">SECTION 01 / DETECTION</div>
+    <h2>提交一次<br/>检测任务</h2>
+
+    <div class="field">
+      <label>中转站接口地址 / BASE URL</label>
+      <input type="text" placeholder="https://api.example.com/v1" />
+    </div>
+    <div class="field">
+      <label>API KEY · 仅内存存活，任务结束即焚</label>
+      <input type="password" placeholder="sk-···············" />
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>目标模型</label>
+        <select>
+          <option>gpt-5.5</option>
+          <option>claude-opus-4-8</option>
+          <option>claude-sonnet-4-6</option>
+          <option>gemini-3.1-pro</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>缓存检测</label>
+        <select><option>关闭</option><option>开启（+30s）</option></select>
+      </div>
+    </div>
+
+    <button class="run-btn">
+      <span>开始检测</span>
+      <span class="arr">→→</span>
+    </button>
+
+    <p style="font-size:11px;color:var(--muted);margin-top:14px;line-height:1.55;letter-spacing:0.04em;">
+      KEY 隐私：HTTPS 传输 · 仅内存存活 · 任务结束即焚 · 日志掩码（首尾各 4 字符） · 历史仅存脱敏结果。
+    </p>
+  </div>
+
+  <div class="detect-side">
+    <div class="label">七维度 · METHODOLOGY</div>
+    <div class="dims">
+      <div class="dim">
+        <div class="n num">01</div>
+        <div class="name">返回协议一致性
+          <small>id 前缀 / usage 字段 / finish_reason 等协议元数据</small>
+        </div>
+        <div class="w num">W·18</div>
+      </div>
+      <div class="dim">
+        <div class="n num">02</div>
+        <div class="name">响应结构
+          <small>SSE 帧分布、tool_calls 形态、流式结构完整性</small>
+        </div>
+        <div class="w num">W·12</div>
+      </div>
+      <div class="dim">
+        <div class="n num">03</div>
+        <div class="name">知识问答结果
+          <small>多轮事实性问题，比对官方模型答案分布</small>
+        </div>
+        <div class="w num">W·14</div>
+      </div>
+      <div class="dim">
+        <div class="n num">04</div>
+        <div class="name">身份一致性
+          <small>自报 model id、cutoff、能力声明是否自洽</small>
+        </div>
+        <div class="w num">W·14</div>
+      </div>
+      <div class="dim">
+        <div class="n num">05</div>
+        <div class="name">思维链痕迹
+          <small>reasoning_trace 是否符合该模型已知模式</small>
+        </div>
+        <div class="w num">W·10</div>
+      </div>
+      <div class="dim">
+        <div class="n num">06</div>
+        <div class="name">签名指纹
+          <small>响应中可观测的统计签名（tokenization / logprob）</small>
+        </div>
+        <div class="w num">W·10</div>
+      </div>
+      <div class="dim highlight">
+        <div class="n num">07</div>
+        <div class="name">协议来源指纹 · 最高权重
+          <small>响应元数据厂商一致性。最难伪造，识破高仿替换</small>
+        </div>
+        <div class="w num">W·22</div>
+      </div>
+    </div>
+    <div class="dims-footer">
+      引擎三段式：采样（I/O）→ 判定（纯函数）→ 聚合（纯函数）。
+      来源冲突时硬封顶总分并派生身份替换 / 降智警示。
+    </div>
+  </div>
+</section>
+
+<!-- =============================================================
+     04 · 模型榜单
+     ============================================================= -->
+<section class="leaderboard" id="leaderboard">
+  <div class="lb-head">
+    <div class="title-block">
+      <div class="num">SECTION 02 / LEADERBOARD</div>
+      <h2>按模型筛选<br/>中转站渠道</h2>
+    </div>
+    <div class="lb-tabs">
+      <a href="#" class="active">gpt-5.5</a>
+      <a href="#">claude-opus-4-8</a>
+      <a href="#">claude-sonnet-4-6</a>
+      <a href="#">gemini-3.1-pro</a>
+    </div>
+  </div>
+  <table class="lb-table">
+    <thead>
+      <tr>
+        <th style="width:40px;">#</th>
+        <th>渠道</th>
+        <th>认证</th>
+        <th class="r">价格 / 1M tokens</th>
+        <th class="r">7d Δ</th>
+        <th class="r">限速 RPM</th>
+        <th class="r">可用率</th>
+        <th class="r">降智</th>
+        <th class="r">延迟 (s)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="rank">01</td>
+        <td>
+          <div class="name">云雀API
+            <small>FEATURED · WEIGHT 100</small>
+          </div>
+        </td>
+        <td><span class="cert ent">企业</span></td>
+        <td class="r">¥12.50</td>
+        <td class="r"><span class="delta down">-16.7%</span></td>
+        <td class="r">5,000</td>
+        <td class="r">99.6%</td>
+        <td class="r"><span class="dg-ok">未发现</span></td>
+        <td class="r">1.8</td>
+      </tr>
+      <tr>
+        <td class="rank">02</td>
+        <td>
+          <div class="name">极速中转
+            <small>WEIGHT 60</small>
+          </div>
+        </td>
+        <td><span class="cert per">个人</span></td>
+        <td class="r">¥9.80</td>
+        <td class="r"><span class="delta">±0%</span></td>
+        <td class="r">2,000</td>
+        <td class="r">97.2%</td>
+        <td class="r"><span class="dg-warn">偶发</span></td>
+        <td class="r">2.4</td>
+      </tr>
+      <tr>
+        <td class="rank">03</td>
+        <td>
+          <div class="name">低价仓
+            <small>WEIGHT 10</small>
+          </div>
+        </td>
+        <td><span class="cert none">未认证</span></td>
+        <td class="r">¥6.00</td>
+        <td class="r"><span class="delta up">+20.0%</span></td>
+        <td class="r">500</td>
+        <td class="r">88.5%</td>
+        <td class="r"><span class="dg-suspect">疑似</span></td>
+        <td class="r">4.1</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="lb-footer">
+    <span>排序：精选权重 / 价格 / 可用率 · 价格变化基于近 7 天历史</span>
+    <a href="#">查看完整榜单 →</a>
+  </div>
+</section>
+
+<!-- =============================================================
+     05 · 检测原理 + 官方状态
+     ============================================================= -->
+<section class="split">
+  <div class="principle">
+    <div class="num">SECTION 03 / METHOD</div>
+    <h2>引擎三段式<br/>I/O · 判定 · 聚合</h2>
+    <p class="lead">
+      <strong>采样（I/O）</strong>调用中转站，单轮 60 秒超时仅标记不中断；
+      401/403 立即中止任务。<strong>判定</strong>七个维度均为纯函数，便于属性测试。
+      <strong>聚合</strong>加权评分（inconclusive 维度剔除）；来源冲突时硬封顶总分，
+      派生身份替换 / 降智警示。
+    </p>
+    <div class="flow">
+      <div class="stage">
+        <div class="k">STAGE 01</div>
+        <h4>采样</h4>
+        <p>undici 直连中转站接口，提取响应协议元数据：id 前缀 / usage 字段 / 结束原因 / 流式帧序列。</p>
+      </div>
+      <div class="arr">→</div>
+      <div class="stage">
+        <div class="k">STAGE 02</div>
+        <h4>判定</h4>
+        <p>七个纯函数判定器，每维输出 verdict（pass / warn / fail / inconclusive）+ 证据片段。</p>
+      </div>
+      <div class="arr">→</div>
+      <div class="stage">
+        <div class="k">STAGE 03</div>
+        <h4>聚合</h4>
+        <p>按权重加权得出 0–100 总分；触发 identity_swap / downgrade 警示时硬封顶。</p>
+      </div>
+    </div>
+    <p style="font-size:13px;color:var(--muted);line-height:1.6;border-top:1px solid var(--rule-dim);padding-top:18px;max-width:720px;">
+      方法学参考论文《Auditing Black-Box LLM APIs with a Rank-Based Uniformity Test》、
+      《Are You Getting What You Pay For? Auditing Model Substitution in LLM APIs》等。
+      完整白皮书见 <a href="#">检测原理</a>。
+    </p>
+  </div>
+
+  <aside class="status" id="status">
+    <div class="num">SECTION 04 / UPSTREAM</div>
+    <h3>官方 API<br/>实时状态</h3>
+    <div class="status-row">
+      <div class="who">OpenAI
+        <small>STATUS.OPENAI.COM</small>
+      </div>
+      <span class="tag normal">正常</span>
+    </div>
+    <div class="status-row">
+      <div class="who">Anthropic Claude
+        <small>STATUS.CLAUDE.COM</small>
+      </div>
+      <span class="tag normal">正常</span>
+    </div>
+    <div class="status-row">
+      <div class="who">Google Gemini
+        <small>STATUS.CLOUD.GOOGLE</small>
+      </div>
+      <span class="tag unknown">未知 ⓘ</span>
+    </div>
+    <p class="status-foot">
+      「未知」表示本服务暂时无法探测该官方状态页（多为网络不可达），
+      并不代表官方 API 出现故障。每 5 分钟刷新。
+    </p>
+  </aside>
+</section>
+
+<!-- =============================================================
+     06 · MANIFESTO（Brutalism 的招牌大字报）
+     ============================================================= -->
+<section class="manifesto">
+  <div class="num">SECTION 05 / MANIFESTO</div>
+  <blockquote>
+    便宜的<em>价格</em>，<br/>
+    不是<em>更便宜</em>的<br/>
+    模型。
+  </blockquote>
+  <div class="sig">
+    <span>—— TINY OWL EDITORIAL</span>
+    <span>2026·06</span>
+    <span>tinyowl.cn</span>
+  </div>
+</section>
+
+<!-- =============================================================
+     07 · FAQ
+     ============================================================= -->
+<section class="faq" id="faq">
+  <div class="faq-head">
+    <div class="num">SECTION 06 / FAQ</div>
+    <h2>常见问题<br/>与科普</h2>
+  </div>
+  <div class="faq-list">
+    <div class="faq-item">
+      <div class="q-n num">Q·01</div>
+      <div>
+        <h4>什么是 API「中转站」？</h4>
+        <p>第三方在官方 API 之上做封装的服务商，对外提供 OpenAI / Claude / Gemini 兼容协议接口。
+          常见动机：聚合多家、降低单价、规避地域限制。风险：身份替换、降智、协议不一致、隐私不当处理。</p>
+      </div>
+    </div>
+    <div class="faq-item">
+      <div class="q-n num">Q·02</div>
+      <div>
+        <h4>检测准确率有多高？</h4>
+        <p>本检测是<strong>低成本技术性验证</strong>，不是法律审计。我们公开方法学并维护开源代码。
+          七维体系中，「协议来源指纹」是最难伪造、权重最高的维度；通过该维度的渠道更可信。
+          但<strong>不保证 100% 准确</strong>。</p>
+      </div>
+    </div>
+    <div class="faq-item">
+      <div class="q-n num">Q·03</div>
+      <div>
+        <h4>提交的 API Key 安全吗？</h4>
+        <p>HTTPS 传输 · 仅内存存活 · 任务结束 finally 即焚（参见 <code>keyHolder.ts</code>） ·
+          日志掩码（首尾各 4 字符） · 历史仅存脱敏结果。<strong>我们不保存你的 Key</strong>。</p>
+      </div>
+    </div>
+    <div class="faq-item">
+      <div class="q-n num">Q·04</div>
+      <div>
+        <h4>「降智」是怎么判定的？</h4>
+        <p>多轮事实性问答 + 协议元数据比对，与该模型官方分布的统计偏差。
+          单次低分不会判降智，需多轮一致偏离才会触发警示。详见
+          <a href="#">检测原理白皮书 §4.2</a>。</p>
+      </div>
+    </div>
+    <div class="faq-item">
+      <div class="q-n num">Q·05</div>
+      <div>
+        <h4>榜单数据怎么更新？</h4>
+        <p>渠道信息由运营管理维护；价格变更自动入库，用于计算近 7 天百分比。
+          可用率、降智、延迟以最近一次有效检测为准。<strong>欢迎用户上报新发现</strong>。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =============================================================
+     08 · COLOPHON
+     ============================================================= -->
+<footer>
+  <div class="colophon">
+    <div>
+      <div class="label">站点</div>
+      <a href="#">首页检测</a>
+      <a href="#">模型榜单</a>
+      <a href="#">官方状态</a>
+      <a href="#">检测历史</a>
+      <a href="#">常见问题</a>
+    </div>
+    <div>
+      <div class="label">方法</div>
+      <a href="#">检测原理白皮书</a>
+      <a href="#">七维度权重表</a>
+      <a href="#">引擎源码 (GitHub)</a>
+      <a href="#">参考论文清单</a>
+    </div>
+    <div>
+      <div class="label">声明</div>
+      <a href="#">隐私协议</a>
+      <a href="#">免责声明</a>
+      <a href="#">联系方式</a>
+    </div>
+    <div>
+      <div class="label">COLOPHON</div>
+      <div class="brand-end">TINY OWL <span style="color:var(--accent);">·</span> 猫头鹰评测</div>
+      <p style="font-size:11px;color:var(--muted);letter-spacing:0;line-height:1.5;margin-top:8px;text-transform:none;">
+        Inter / Geist Mono · 独立 · 技术性 · 公开方法。
+      </p>
+    </div>
+  </div>
+  <div class="legal">
+    <span>© 2026 TINYOWL.CN · ALL RIGHTS RESERVED</span>
+    <span>本检测为低成本技术性验证 · 非法律审计 · 不保证 100% 准确</span>
+  </div>
+</footer>
+
+</body>
+</html>

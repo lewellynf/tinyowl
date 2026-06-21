@@ -4,12 +4,16 @@ import type { Dimension } from '@tinyowl/shared';
 export interface ProvenanceSignals {
   /** 响应 id 前缀，如 'msg_'(Anthropic) / 'chatcmpl-'(OpenAI) / 'gen-' 等 */
   idPrefix?: string;
+  /** 响应体里回显的 model 字段值（最直接的信号，套壳常忘记改写） */
+  modelField?: string;
   /** usage 对象中出现的字段名集合（厂商特有字段是强信号） */
   usageKeys?: string[];
   /** 结束原因取值，如 'stop'/'end_turn'/'max_tokens' */
   finishReason?: string;
   /** OpenAI 特有的 system_fingerprint 是否存在 */
   hasSystemFingerprint?: boolean;
+  /** system_fingerprint 的实际取值（可能暴露上游真实厂商/量化信息） */
+  systemFingerprintValue?: string;
   /** 顶层字段名集合 */
   topLevelKeys?: string[];
 }
@@ -17,7 +21,7 @@ export interface ProvenanceSignals {
 /** 单次中转站采样的原始记录（由采样层产生，喂给纯函数判定层） */
 export interface RelaySample {
   /** 探测意图，用于让各 probe 取用相关样本 */
-  purpose: 'protocol' | 'structure' | 'knowledge' | 'identity' | 'reasoning' | 'fingerprint' | 'cache';
+  purpose: 'protocol' | 'structure' | 'knowledge' | 'identity' | 'reasoning' | 'fingerprint' | 'cache' | 'computation' | 'instruction' | 'injection' | 'trap' | 'claude_code_verify' | 'structured_output';
   ok: boolean; // 该轮是否成功（非超时/网络错误）
   timedOut: boolean;
   httpStatus?: number;
