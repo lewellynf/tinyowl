@@ -9,6 +9,10 @@ export const DimensionSchema = z.enum([
   'reasoning_trace', // 思维链痕迹
   'signature_fingerprint', // 签名指纹
   'provenance_fingerprint', // 协议来源指纹（响应元数据厂商一致性）
+  'dynamic_computation', // 动态计算（随机数学题，不可缓存）
+  'instruction_following', // 指令遵循（复杂约束 + JSON 结构化输出）
+  'injection_resistance', // 注入抗性（检测是否泄露内部信息）
+  'trap_detection', // 陷阱题检测（虚假未来事件，自信回答 = 灌假数据）
 ]);
 export type Dimension = z.infer<typeof DimensionSchema>;
 
@@ -21,6 +25,10 @@ export const DIMENSION_LABELS: Record<Dimension, string> = {
   reasoning_trace: '思维链痕迹',
   signature_fingerprint: '签名指纹',
   provenance_fingerprint: '协议来源指纹',
+  dynamic_computation: '动态计算',
+  instruction_following: '指令遵循',
+  injection_resistance: '注入抗性',
+  trap_detection: '陷阱题检测',
 };
 
 export const VerdictSchema = z.enum(['pass', 'suspect', 'fail', 'inconclusive']);
